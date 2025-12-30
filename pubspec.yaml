@@ -42,6 +42,7 @@ dependencies:
   native_device_orientation: ^2.1.0
   pedometer: ^4.1.1
   shared_preferences: ^2.5.3
+  supabase_flutter: ^2.12.0
 
 dev_dependencies:
   flutter_test:

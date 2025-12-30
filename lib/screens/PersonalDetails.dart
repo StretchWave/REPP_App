@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:ai_fitness_tracker/screens/FitnessGoal.dart';
 
 class PersonalDetailsScreen extends StatefulWidget {
-  const PersonalDetailsScreen({super.key});
+  final Map<String, dynamic> signUpData;
+  const PersonalDetailsScreen({super.key, required this.signUpData});
 
   @override
   State<PersonalDetailsScreen> createState() => _PersonalDetailsScreenState();
@@ -13,12 +14,13 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   final TextEditingController _ageController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
   final TextEditingController _weightController = TextEditingController();
-  final TextEditingController _bodyFatController = TextEditingController();
 
   // State Variables
   String _selectedGender = 'Male';
   bool _medicalConditions = false;
-  bool _doctorRestricted = false;
+  // bool _doctorRestricted = false; // Removed
+  bool _canFocusUpperBody = false;
+  bool _canFocusLowerBody = false;
   String? _selectedBodyType;
 
   final Map<String, String> _bodyTypeDescriptions = {
@@ -26,6 +28,30 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     'Mesomorph': 'Balanced training',
     'Endomorph': 'Higher reps, cardio volume, shorter rest',
   };
+
+  void _onContinue() {
+    // Collect Current Data
+    final personalData = {
+      'age': _ageController.text.trim(),
+      'gender': _selectedGender,
+      'height': _heightController.text.trim(),
+      'weight': _weightController.text.trim(),
+      'physically_handicapped': _medicalConditions,
+      'can_focus_upper_body': _medicalConditions ? _canFocusUpperBody : true,
+      'can_focus_lower_body': _medicalConditions ? _canFocusLowerBody : true,
+      'body_type': _selectedBodyType,
+    };
+
+    // Merge with previous data
+    final mergedData = {...widget.signUpData, ...personalData};
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => FitnessGoalsScreen(previousData: mergedData),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,58 +162,30 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  _buildLabel('Body Fat Percentage'),
-                  // Body Fat Field with Calculate Trigger
-                  TextField(
-                    controller: _bodyFatController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: 'Enter body fat %',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
-                      suffixIcon: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: TextButton(
-                          onPressed: _showBodyFatCalculator,
-                          child: const Text(
-                            'Calculate',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                    ),
-                  ),
-                  _buildHelperText(
-                    "If you don't know, you can skip this or estimate",
-                  ),
                   const SizedBox(height: 24),
 
-                  _buildLabel('Medical Conditions?', isRequired: true),
+                  _buildLabel('Physically handicapped?', isRequired: true),
                   _buildYesNoSelector(
                     _medicalConditions,
                     (val) => setState(() => _medicalConditions = val),
                   ),
-                  const SizedBox(height: 20),
 
-                  _buildLabel('Doctor-Restricted Exercises?', isRequired: true),
-                  _buildYesNoSelector(
-                    _doctorRestricted,
-                    (val) => setState(() => _doctorRestricted = val),
-                  ),
-                  _buildHelperText(
-                    "Any exercises your doctor advised you to avoid?",
-                  ),
+                  if (_medicalConditions) ...[
+                    const SizedBox(height: 20),
+                    _buildLabel('Which muscle groups can you focus on?'),
+                    _buildCheckbox(
+                      'Upper Body (Arms, Shoulder, Chest, Back)',
+                      _canFocusUpperBody,
+                      (val) {
+                        setState(() => _canFocusUpperBody = val ?? false);
+                      },
+                    ),
+                    _buildCheckbox('Lower Body (Legs)', _canFocusLowerBody, (
+                      val,
+                    ) {
+                      setState(() => _canFocusLowerBody = val ?? false);
+                    }),
+                  ],
                   const SizedBox(height: 24),
 
                   Row(
@@ -265,15 +263,7 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const FitnessGoalsScreen(),
-                              ),
-                            );
-                          },
+                          onPressed: _onContinue,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(
                               0xFF6C757D,
@@ -492,58 +482,17 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
     );
   }
 
-  void _showBodyFatCalculator() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Calculate Body Fat'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('This is a simple estimation based on BMI and age.'),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Waist Circumference (cm)',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Neck Circumference (cm)',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              // Could add hip for females
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                // Logic to calculate and set _bodyFatController.text
-                // For demo, just set a dummy value
-                setState(() {
-                  _bodyFatController.text = "15.5";
-                });
-                Navigator.pop(context);
-              },
-              child: const Text('Calculate'),
-            ),
-          ],
-        );
-      },
+  Widget _buildCheckbox(String title, bool value, Function(bool?) onChanged) {
+    return CheckboxListTile(
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 14, color: Colors.black87),
+      ),
+      value: value,
+      onChanged: onChanged,
+      activeColor: const Color(0xFF6C757D),
+      controlAffinity: ListTileControlAffinity.leading,
+      contentPadding: EdgeInsets.zero,
     );
   }
 }

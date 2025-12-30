@@ -3,8 +3,53 @@ import 'package:ai_fitness_tracker/widgets/glass_text_field.dart';
 import 'package:ai_fitness_tracker/screens/PersonalDetails.dart';
 import 'package:flutter/material.dart';
 
-class SignupScreen extends StatelessWidget {
+class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
+
+  @override
+  State<SignupScreen> createState() => _SignupScreenState();
+}
+
+class _SignupScreenState extends State<SignupScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _onSignUp() {
+    // Basic Validation
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter email and password')),
+      );
+      return;
+    }
+
+    // Collect Data
+    final signUpData = {
+      'full_name': _nameController.text.trim(),
+      'phone_number': _phoneController.text.trim(),
+      'email': _emailController.text.trim(),
+      'password': _passwordController.text.trim(), // Sent securely to Supabase
+    };
+
+    // Navigate to next screen with data
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PersonalDetailsScreen(signUpData: signUpData),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,25 +128,29 @@ class SignupScreen extends StatelessWidget {
                         const SizedBox(height: 32),
 
                         // Form Fields
-                        const GlassTextField(
+                        GlassTextField(
+                          controller: _nameController,
                           hint: 'Full Name',
                           icon: Icons.person,
                           keyboardType: TextInputType.name,
                         ),
                         const SizedBox(height: 16),
-                        const GlassTextField(
+                        GlassTextField(
+                          controller: _phoneController,
                           hint: 'Phone Number',
                           icon: Icons.phone_android,
                           keyboardType: TextInputType.phone,
                         ),
                         const SizedBox(height: 16),
-                        const GlassTextField(
+                        GlassTextField(
+                          controller: _emailController,
                           hint: 'Email Address',
                           icon: Icons.email,
                           keyboardType: TextInputType.emailAddress,
                         ),
                         const SizedBox(height: 16),
-                        const GlassTextField(
+                        GlassTextField(
+                          controller: _passwordController,
                           hint: 'Password',
                           icon: Icons.lock,
                           isPassword: true,
@@ -111,15 +160,7 @@ class SignupScreen extends StatelessWidget {
 
                         // Sign Up Button
                         ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const PersonalDetailsScreen(),
-                              ),
-                            );
-                          },
+                          onPressed: _onSignUp,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.black87,

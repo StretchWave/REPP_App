@@ -4,12 +4,18 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 List<CameraDescription> cameras = [];
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  // Using Native Camera
+
+  await Supabase.initialize(
+    url: 'https://wdslpbonzrakgtlsqoli.supabase.co',
+    anonKey: 'sb_publishable_jp2dPzWt-rnfRBn3g2DwXg_fmDHBOJ7',
+  );
 
   runApp(const MyApp());
 }
