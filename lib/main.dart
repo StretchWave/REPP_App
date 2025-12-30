@@ -1,4 +1,4 @@
-import 'package:ai_fitness_tracker/screens/Home.dart'; // Import Home
+import 'package:ai_fitness_tracker/screens/Login.dart'; // Import Login
 import 'package:ai_fitness_tracker/widgets/ai_status_overlay.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
       builder: (context, child) {
         return GlobalAiOverlay(child: child!);
       },
-      home: const HomeScreen(), // Set Home
+      home: const LoginScreen(), // Set Login
     );
   }
 }

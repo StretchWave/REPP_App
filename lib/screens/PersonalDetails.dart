@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ai_fitness_tracker/screens/FitnessGoal.dart';
 
 class PersonalDetailsScreen extends StatefulWidget {
   const PersonalDetailsScreen({super.key});
@@ -265,7 +266,13 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
-                            // TODO: Continue form
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const FitnessGoalsScreen(),
+                              ),
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(

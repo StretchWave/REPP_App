@@ -1,3 +1,4 @@
+import 'package:ai_fitness_tracker/screens/Home.dart';
 import 'package:flutter/material.dart';
 
 class FitnessGoalsScreen extends StatefulWidget {
@@ -332,7 +333,13 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
                       Expanded(
                         child: ElevatedButton(
                           onPressed: () {
-                            // TODO: Continue
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const HomeScreen(),
+                              ),
+                              (route) => false,
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF6C757D),

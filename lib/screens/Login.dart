@@ -1,15 +1,16 @@
 import 'dart:ui';
+import 'package:ai_fitness_tracker/screens/SignUp.dart';
+import 'package:ai_fitness_tracker/screens/Home.dart';
 import 'package:ai_fitness_tracker/widgets/glass_text_field.dart';
 import 'package:flutter/material.dart';
 
-class SignupScreen extends StatelessWidget {
-  const SignupScreen({super.key});
+class LoginScreen extends StatelessWidget {
+  const LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        // Overriding gradient to match the specific "Dark Grey" look better
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -40,7 +41,7 @@ class SignupScreen extends StatelessWidget {
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min, // Wrap content
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         // Icon / Logo Placeholder
                         Center(
@@ -52,7 +53,8 @@ class SignupScreen extends StatelessWidget {
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
-                              Icons.fitness_center, // Placeholder for biceps
+                              Icons
+                                  .accessibility_new, // Man lifting weights approx
                               color: Color(0xFFFFC107), // Amber/Gold
                               size: 40,
                             ),
@@ -61,7 +63,7 @@ class SignupScreen extends StatelessWidget {
                         const SizedBox(height: 24),
 
                         const Text(
-                          'Create Account',
+                          'Welcome Back',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 28,
@@ -72,7 +74,7 @@ class SignupScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Join the AI Fitness Revolution',
+                          'Login to continue your fitness journey',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 14,
@@ -82,18 +84,6 @@ class SignupScreen extends StatelessWidget {
                         const SizedBox(height: 32),
 
                         // Form Fields
-                        const GlassTextField(
-                          hint: 'Full Name',
-                          icon: Icons.person,
-                          keyboardType: TextInputType.name,
-                        ),
-                        const SizedBox(height: 16),
-                        const GlassTextField(
-                          hint: 'Phone Number',
-                          icon: Icons.phone_android,
-                          keyboardType: TextInputType.phone,
-                        ),
-                        const SizedBox(height: 16),
                         const GlassTextField(
                           hint: 'Email Address',
                           icon: Icons.email,
@@ -106,12 +96,34 @@ class SignupScreen extends StatelessWidget {
                           isPassword: true,
                         ),
 
-                        const SizedBox(height: 32),
+                        // Forgot Password
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              // TODO: Forgot Password
+                            },
+                            child: Text(
+                              'Forgot Password?',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
 
-                        // Sign Up Button
+                        const SizedBox(height: 24),
+
+                        // Log In Button
                         ElevatedButton(
                           onPressed: () {
-                            // TODO: Implement Sign Up Logic
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const HomeScreen(),
+                              ),
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
@@ -123,7 +135,7 @@ class SignupScreen extends StatelessWidget {
                             elevation: 0,
                           ),
                           child: const Text(
-                            'SIGN UP',
+                            'LOG IN',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -132,29 +144,81 @@ class SignupScreen extends StatelessWidget {
                           ),
                         ),
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 32),
 
-                        // Login Link
+                        // OR Divider
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Divider(
+                                color: Colors.white.withOpacity(0.2),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Text(
+                                'OR',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.5),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Divider(
+                                color: Colors.white.withOpacity(0.2),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Social Logins
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildSocialButton(Icons.phone_android),
+                            _buildSocialButton(
+                              Icons.circle,
+                              color: Colors.blue,
+                            ), // Google-ish
+                            _buildSocialButton(
+                              Icons.apple,
+                              color: Colors.redAccent,
+                            ), // Apple-ish color for demo
+                          ],
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Sign Up Link
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              'Already a member? ',
+                              "Don't have an account? ",
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.6),
-                                fontSize: 14,
+                                fontSize: 13,
                               ),
                             ),
                             GestureDetector(
                               onTap: () {
-                                // TODO: Navigate to Login
-                                Navigator.pop(context);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const SignupScreen(),
+                                  ),
+                                );
                               },
                               child: const Text(
-                                'Log In',
+                                'Sign Up',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 14,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.bold,
                                   decoration: TextDecoration.underline,
                                   decorationColor: Colors.white,
@@ -172,6 +236,18 @@ class SignupScreen extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSocialButton(IconData icon, {Color? color}) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Icon(icon, color: color ?? Colors.white, size: 24),
     );
   }
 }
