@@ -1,4 +1,4 @@
-import 'package:ai_fitness_tracker/screens/Home.dart';
+import 'package:ai_fitness_tracker/screens/calibration_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -73,9 +73,8 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
       final User? user = res.user;
 
       if (user != null) {
-        // 2. Insert or Update Profile Data
-        await Supabase.instance.client.from('profiles').upsert({
-          'id': user.id,
+        // Prepare Profile Data (Do NOT save yet, pass to Calibration)
+        final completeProfileData = {
           'full_name': fullData['full_name'],
           'phone_number': fullData['phone_number'],
           'age': int.tryParse(fullData['age'].toString()) ?? 0,
@@ -89,13 +88,16 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
           'goal_timeline': fullData['goal_timeline'],
           'workout_frequency': fullData['workout_frequency'],
           'goal_intensity': fullData['goal_intensity'],
-        });
+        };
 
         if (mounted) {
-          // Navigate to Home
+          // Navigate to Calibration Screen with Data
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            MaterialPageRoute(
+              builder: (context) =>
+                  CalibrationScreen(userData: completeProfileData),
+            ),
             (route) => false,
           );
         }

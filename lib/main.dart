@@ -1,3 +1,4 @@
+import 'package:ai_fitness_tracker/screens/Home.dart';
 import 'package:ai_fitness_tracker/screens/Login.dart'; // Import Login
 import 'package:ai_fitness_tracker/widgets/ai_status_overlay.dart';
 import 'package:camera/camera.dart';
@@ -30,7 +31,9 @@ class MyApp extends StatelessWidget {
       builder: (context, child) {
         return GlobalAiOverlay(child: child!);
       },
-      home: const LoginScreen(), // Set Login
+      home: Supabase.instance.client.auth.currentUser != null
+          ? const HomeScreen()
+          : const LoginScreen(),
     );
   }
 }

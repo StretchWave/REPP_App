@@ -9,10 +9,27 @@ class WorkoutService {
   factory WorkoutService() => _instance;
   WorkoutService._internal();
 
+  // Debug: Offset to simulate future/past dates
+  Duration _debugOffset = Duration.zero;
+
+  void debugSetOffset(Duration offset) {
+    _debugOffset = offset;
+  }
+
+  void debugAdvanceDay() {
+    _debugOffset += const Duration(days: 1);
+  }
+
+  void debugResetToToday() {
+    _debugOffset = Duration.zero;
+  }
+
+  DateTime get now => DateTime.now().add(_debugOffset);
+
   /// Returns the key for today's workout data: "workout_progress_YYYY-MM-DD"
   String _getTodayKey() {
-    final now = DateTime.now();
-    return '$_workoutKeyPrefix${now.year}-${now.month}-${now.day}';
+    final d = now;
+    return '$_workoutKeyPrefix${d.year}-${d.month}-${d.day}';
   }
 
   /// Saves the completion status and duration for a specific exercise
@@ -22,6 +39,7 @@ class WorkoutService {
     required int durationSeconds,
     int? progressValue,
     String? feedback,
+    bool isSkipped = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final key = _getTodayKey();
@@ -36,10 +54,11 @@ class WorkoutService {
     // Update specific exercise
     data[exerciseName] = {
       'isCompleted': isCompleted,
+      'isSkipped': isSkipped,
       'durationSeconds': durationSeconds,
       'progressValue': progressValue,
       'feedback': feedback,
-      'timestamp': DateTime.now().toIso8601String(),
+      'timestamp': now.toIso8601String(),
     };
 
     // Save back

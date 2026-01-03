@@ -1,10 +1,80 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:ai_fitness_tracker/screens/Workout_Screen.dart';
 import 'package:ai_fitness_tracker/screens/Analytics.dart';
 import 'package:ai_fitness_tracker/screens/Diet.dart';
+import 'package:ai_fitness_tracker/screens/profile_screen.dart';
+import 'package:ai_fitness_tracker/screens/Recommendation.dart';
+import 'package:ai_fitness_tracker/services/workout_log_service.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _summaryMessage = "Loading daily motivation...";
+  bool _isLoading = true;
+
+  final List<String> _motivationalQuotes = [
+    "Consistency is key! Keep showing up.",
+    "Your only limit is you. Push harder!",
+    "Small steps every day lead to big results.",
+    "Don't stop when you're tired. Stop when you're done.",
+    "Sweat is just fat crying. Keep it up!",
+    "Make yourself proud today.",
+    "You are stronger than you think.",
+    "Focus on progress, not perfection.",
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDailyMessage();
+  }
+
+  Future<void> _loadDailyMessage() async {
+    try {
+      final now = DateTime.now();
+      final yesterday = now.subtract(const Duration(days: 1));
+      final start = DateTime(yesterday.year, yesterday.month, yesterday.day);
+      final end = start
+          .add(const Duration(days: 1))
+          .subtract(const Duration(seconds: 1));
+
+      final calories = await WorkoutLogService().getCaloriesBurned(start, end);
+
+      String message = "";
+
+      // 50/50 Chance to show stats IF we have data, otherwise always show quote
+      bool showStats = calories > 0 && Random().nextBool();
+
+      if (showStats) {
+        message =
+            "You burned ${calories.toInt()} calories yesterday! Your consistency is improving. Keep up the momentum! 🔥";
+      } else {
+        message =
+            _motivationalQuotes[Random().nextInt(_motivationalQuotes.length)];
+      }
+
+      if (mounted) {
+        setState(() {
+          _summaryMessage = message;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _summaryMessage =
+              _motivationalQuotes[Random().nextInt(_motivationalQuotes.length)];
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +83,7 @@ class HomeScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildHeader(),
+            _buildHeader(context),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
@@ -66,12 +136,19 @@ class HomeScreen extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 16),
+
+                  // ...
                   _buildMenuOption(
                     icon: Icons.favorite_border,
                     title: 'Recommendations',
                     subtitle: 'Personalized AI suggestions',
                     onTap: () {
-                      // TODO: Implement Recommendations Screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RecommendationScreen(),
+                        ),
+                      );
                     },
                   ),
                   const SizedBox(height: 40), // Bottom padding
@@ -84,7 +161,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Container(
       width: double.infinity,
       color: const Color(0xFF1E2126), // Dark header background
@@ -116,10 +193,20 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const CircleAvatar(
-                radius: 20,
-                backgroundColor: Color(0xFF383D47),
-                child: Icon(Icons.person_outline, color: Colors.white),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfileScreen(),
+                    ),
+                  );
+                },
+                child: const CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Color(0xFF383D47),
+                  child: Icon(Icons.person_outline, color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -155,7 +242,7 @@ class HomeScreen extends StatelessWidget {
               ), // Placeholder icon
               SizedBox(width: 8),
               Text(
-                'Great Job!',
+                'Daily Message For you', // Changed from "Great Job!" (generic title)
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -165,14 +252,23 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            'You burned 320 calories yesterday! Your consistency is improving. Keep up the momentum! 🔥',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 14,
-              height: 1.5,
-            ),
-          ),
+          _isLoading
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : Text(
+                  _summaryMessage,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
         ],
       ),
     );
