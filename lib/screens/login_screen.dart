@@ -1,6 +1,6 @@
 import 'dart:ui';
-import 'package:ai_fitness_tracker/screens/SignUp.dart';
-import 'package:ai_fitness_tracker/screens/Home.dart';
+import 'package:ai_fitness_tracker/screens/sign_up_screen.dart';
+import 'package:ai_fitness_tracker/screens/home_screen.dart';
 import 'package:ai_fitness_tracker/widgets/glass_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';

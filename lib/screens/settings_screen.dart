@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ai_fitness_tracker/services/settings_service.dart';
-import 'package:ai_fitness_tracker/screens/Login.dart';
+import 'package:ai_fitness_tracker/screens/login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

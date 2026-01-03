@@ -3,7 +3,7 @@ import 'package:ai_fitness_tracker/logic/difficulty_scaler.dart';
 import 'package:ai_fitness_tracker/logic/pose_bridge.dart';
 import 'package:ai_fitness_tracker/logic/rep_counter.dart';
 import 'package:ai_fitness_tracker/painters/skeleton_painter.dart';
-import 'package:ai_fitness_tracker/screens/Home.dart';
+import 'package:ai_fitness_tracker/screens/home_screen.dart';
 import 'package:ai_fitness_tracker/widgets/camera_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

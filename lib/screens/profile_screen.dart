@@ -1,7 +1,7 @@
-import 'package:ai_fitness_tracker/screens/Login.dart';
+import 'package:ai_fitness_tracker/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:ai_fitness_tracker/screens/Settings.dart';
+import 'package:ai_fitness_tracker/screens/settings_screen.dart';
 import 'package:ai_fitness_tracker/services/workout_log_service.dart';
 import 'package:ai_fitness_tracker/services/level_progression_service.dart';
 

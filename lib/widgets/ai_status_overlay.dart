@@ -8,6 +8,11 @@ class GlobalAiOverlay extends StatefulWidget {
 
   @override
   State<GlobalAiOverlay> createState() => _GlobalAiOverlayState();
+
+  static void startLoading(BuildContext context) {
+    final state = context.findAncestorStateOfType<_GlobalAiOverlayState>();
+    state?._checkModelStatus();
+  }
 }
 
 class _GlobalAiOverlayState extends State<GlobalAiOverlay> {
@@ -20,10 +25,12 @@ class _GlobalAiOverlayState extends State<GlobalAiOverlay> {
   @override
   void initState() {
     super.initState();
-    _checkModelStatus();
+    // Do NOT auto-load here. Wait for explicit trigger.
   }
 
   Future<void> _checkModelStatus() async {
+    if (_isAiReady) return; // Already loaded
+
     try {
       // Trigger preload or check status
       final bool result =

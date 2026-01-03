@@ -1,7 +1,8 @@
 import 'dart:ui';
 import 'package:ai_fitness_tracker/widgets/glass_text_field.dart';
-import 'package:ai_fitness_tracker/screens/PersonalDetails.dart';
+import 'package:ai_fitness_tracker/screens/personal_details_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -25,30 +26,99 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  void _onSignUp() {
-    // Basic Validation
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+  bool _isLoading = false;
+
+  Future<void> _onSignUp() async {
+    // 1. Basic Empty Check
+    if (_nameController.text.isEmpty ||
+        _phoneController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter email and password')),
+        const SnackBar(content: Text('Please fill in all fields')),
       );
       return;
     }
 
-    // Collect Data
-    final signUpData = {
-      'full_name': _nameController.text.trim(),
-      'phone_number': _phoneController.text.trim(),
-      'email': _emailController.text.trim(),
-      'password': _passwordController.text.trim(), // Sent securely to Supabase
-    };
+    // 2. Email Validation
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(_emailController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address')),
+      );
+      return;
+    }
 
-    // Navigate to next screen with data
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PersonalDetailsScreen(signUpData: signUpData),
-      ),
-    );
+    // 3. Password Validation (Min 6 chars)
+    if (_passwordController.text.trim().length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password must be at least 6 characters')),
+      );
+      return;
+    }
+
+    // 4. Phone Validation (Simple length/digit check)
+    final phone = _phoneController.text.trim();
+    if (phone.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid phone number')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // 5. Check if Phone Number already exists in profiles
+      // Note: This assumes RLS allows reading profiles or specific RPC is setup.
+      // If 'profiles' table is not publicly readable, this might fail or return null.
+      final existingPhone = await Supabase.instance.client
+          .from('profiles')
+          .select('id')
+          .eq('phone_number', phone)
+          .maybeSingle();
+
+      if (existingPhone != null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Phone number already registered. Please login.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Note: Checking Email uniqueness client-side is difficult without a dedicated RPC
+      // or exposing email in 'profiles' table. We'll rely on the final SignUp step
+      // in FitnessGoalsScreen to catch email duplicates.
+
+      if (!mounted) return;
+
+      // Collect Data
+      final signUpData = {
+        'full_name': _nameController.text.trim(),
+        'phone_number': phone,
+        'email': _emailController.text.trim(),
+        'password': _passwordController.text.trim(),
+      };
+
+      // Navigate to next screen with data
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PersonalDetailsScreen(signUpData: signUpData),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error validating details: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -170,14 +240,23 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                             elevation: 0,
                           ),
-                          child: const Text(
-                            'SIGN UP',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.black87,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'SIGN UP',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
                         ),
 
                         const SizedBox(height: 24),

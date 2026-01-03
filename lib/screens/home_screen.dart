@@ -1,12 +1,13 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ai_fitness_tracker/screens/Workout_Screen.dart';
-import 'package:ai_fitness_tracker/screens/Analytics.dart';
-import 'package:ai_fitness_tracker/screens/Diet.dart';
+import 'package:ai_fitness_tracker/screens/workout_screen.dart';
+import 'package:ai_fitness_tracker/screens/analytics_screen.dart';
+import 'package:ai_fitness_tracker/screens/diet_screen.dart';
 import 'package:ai_fitness_tracker/screens/profile_screen.dart';
-import 'package:ai_fitness_tracker/screens/Recommendation.dart';
+import 'package:ai_fitness_tracker/screens/recommendation_screen.dart';
 import 'package:ai_fitness_tracker/services/workout_log_service.dart';
+import 'package:ai_fitness_tracker/widgets/ai_status_overlay.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -34,6 +35,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadDailyMessage();
+
+    // Trigger AI Model Preload only when Home Screen is reached
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      GlobalAiOverlay.startLoading(context);
+    });
   }
 
   Future<void> _loadDailyMessage() async {

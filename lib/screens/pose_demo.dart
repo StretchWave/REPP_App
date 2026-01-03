@@ -6,6 +6,8 @@ import 'package:ai_fitness_tracker/services/workout_service.dart';
 import 'package:ai_fitness_tracker/services/workout_log_service.dart';
 import 'package:ai_fitness_tracker/screens/workout_summary_screen.dart';
 import 'package:ai_fitness_tracker/widgets/camera_view.dart';
+import 'package:ai_fitness_tracker/widgets/workout_stats_panel.dart';
+import 'package:ai_fitness_tracker/widgets/jogging_view.dart';
 import 'package:ai_fitness_tracker/logic/pose_bridge.dart';
 import 'package:ai_fitness_tracker/painters/skeleton_painter.dart';
 import 'package:ai_fitness_tracker/logic/rep_counter.dart';
@@ -711,55 +713,132 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
   }
 
   Widget _buildPortraitLayout(String currentExercise, int targetReps) {
-    return Column(
-      children: [
-        if (_permissionGranted)
-          AspectRatio(
-            aspectRatio: 3 / 4,
-            child: _buildCameraArea(currentExercise),
-          )
-        else
-          Expanded(child: _buildPermissionRequest()),
+    // Show Feedback Overlay if needed
+    final feedback = _repCounter.feedback;
 
-        Expanded(child: _buildStatsPanel(currentExercise, targetReps)),
+    return Stack(
+      children: [
+        Column(
+          children: [
+            if (_permissionGranted)
+              AspectRatio(
+                aspectRatio: 3 / 4,
+                child: _buildCameraArea(currentExercise),
+              )
+            else
+              Expanded(child: _buildPermissionRequest()),
+
+            WorkoutStatsPanel(
+              exerciseName: currentExercise,
+              reps: _reps,
+              targetReps: targetReps,
+              accuracy: _repCounter.accuracy,
+              isProperForm: _repCounter.isProperForm,
+              secondsRemaining: _secondsRemaining,
+              isPortrait: true,
+              onSkip: _skipExercise,
+            ),
+          ],
+        ),
+
+        // Floating Feedback Pill (Overlay on Camera)
+        if (feedback.isNotEmpty)
+          Positioned(
+            top: 40,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: feedback.contains("Fix") || feedback == "GO LOWER"
+                      ? Colors.redAccent.withOpacity(0.8)
+                      : Colors.blueAccent.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  feedback,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
 
   Widget _buildLandscapeLayout(String currentExercise, int targetReps) {
-    return Row(
+    final feedback = _repCounter.feedback;
+
+    return Stack(
       children: [
-        Expanded(
-          flex: 3,
-          child: _permissionGranted
-              ? _buildCameraArea(currentExercise)
-              : _buildPermissionRequest(),
+        Row(
+          children: [
+            Expanded(
+              child: _permissionGranted
+                  ? _buildCameraArea(currentExercise)
+                  : _buildPermissionRequest(),
+            ),
+            WorkoutStatsPanel(
+              exerciseName: currentExercise,
+              reps: _reps,
+              targetReps: targetReps,
+              accuracy: _repCounter.accuracy,
+              isProperForm: _repCounter.isProperForm,
+              secondsRemaining: _secondsRemaining,
+              isPortrait: false,
+              onSwitchCamera: _switchCamera,
+              onReset: _resetCounter,
+              onSkip: _skipExercise,
+            ),
+          ],
         ),
 
-        Container(
-          width: 150,
-          color: Colors.black,
-          child: _buildStatsPanel(
-            currentExercise,
-            targetReps,
-            isLandscape: true,
+        // Feedback Overlay
+        if (feedback.isNotEmpty)
+          Positioned(
+            top: 20,
+            left: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: feedback.contains("Fix")
+                    ? Colors.redAccent.withOpacity(0.8)
+                    : Colors.blueAccent.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                feedback,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ),
-        ),
       ],
     );
   }
 
   Widget _buildCameraArea(String currentExercise) {
     if (currentExercise == 'Jogging') {
-      return _buildJoggingUI();
+      return JoggingView(
+        steps: _steps == -1 ? 0 : _steps,
+        targetSteps: _targetSteps,
+      );
     }
 
     return Stack(
       children: [
-        // 1. Native Camera View with GlobalKey to persist across rotation
         Positioned.fill(child: PoseCameraPreview(key: _cameraKey)),
-
-        // 2. Overlay Data & Skeleton
         Positioned.fill(
           child: NativeDeviceOrientationReader(
             builder: (context) {
@@ -768,10 +847,10 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
               );
               int turns = 0;
               if (orientation == NativeDeviceOrientation.landscapeLeft) {
-                turns = 3; // 270 degrees
+                turns = 3;
               } else if (orientation ==
                   NativeDeviceOrientation.landscapeRight) {
-                turns = 1; // 90 degrees (Flip of Left)
+                turns = 1;
               }
 
               return StreamBuilder<List<Map<String, double>>>(
@@ -784,76 +863,17 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
                       ),
                     );
                   }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  if (!snapshot.hasData || snapshot.data!.isEmpty)
                     return const SizedBox();
-                  }
 
-                  if (currentExercise == 'Push-Ups' ||
-                      currentExercise == 'Box Push-Ups' ||
-                      currentExercise == 'Pike Push-Ups' ||
-                      currentExercise == 'Chair Dips' ||
-                      currentExercise == 'Floor Dips' ||
-                      currentExercise == 'Bird Dog' ||
-                      currentExercise == 'Leg Raises' ||
-                      currentExercise == 'Squats' ||
-                      currentExercise == 'Sit-Ups') {
+                  // Process landmarks
+                  if (_plan.isNotEmpty ||
+                      _defaultExercises.contains(currentExercise)) {
                     _repCounter.processLandmarks(
                       snapshot.data!,
                       currentExercise,
                     );
-
-                    // TTS FEEDBACK INTEGRATION
-                    if (_repCounter.feedback.isNotEmpty) {
-                      // Only speak meaningful feedback (ignore "UP", "DOWN" unless we want them)
-                      // "UP"/"DOWN"/ "GO LOWER" might be spammy or helpful?
-                      // User requested specific posture fixes.
-                      // Let's filter:
-                      final msg = _repCounter.feedback;
-                      bool isPostureFix =
-                          msg != "UP" &&
-                          msg != "DOWN" &&
-                          msg != "GO LOWER" &&
-                          msg != "HOLD" &&
-                          msg != "STAND" &&
-                          msg != "LIFT" &&
-                          msg != "LOWER" &&
-                          msg != "EXTEND" &&
-                          msg != "KEEP GOING";
-
-                      if (isPostureFix) {
-                        bool isWarning = msg.contains("Unclear");
-                        TtsService().speakFeedback(
-                          msg,
-                          key: msg,
-                          debounceDuration: isWarning
-                              ? const Duration(seconds: 10)
-                              : const Duration(seconds: 4),
-                        );
-                      }
-                    }
-                  }
-
-                  if (_reps != _repCounter.count) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) {
-                        // Speak if incremented
-                        if (_repCounter.count > _reps) {
-                          TtsService().speakCount(_repCounter.count);
-                        }
-
-                        setState(() => _reps = _repCounter.count);
-
-                        // Start Timer on First Rep
-                        if (_reps > 0 && !_hasStartedTimer) {
-                          _hasStartedTimer = true;
-                          _startTimer();
-                        }
-
-                        if (_reps >= _targetReps && !_isTransitioning) {
-                          _handleGoalMet();
-                        }
-                      }
-                    });
+                    _handleTtsAndLogic(); // Extracted logic
                   }
 
                   return RotatedBox(
@@ -868,13 +888,12 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
           ),
         ),
 
-        // Back Button Overlay for Landscape
         if (MediaQuery.of(context).orientation == Orientation.landscape)
           Positioned(
-            top: 20,
-            left: 20,
+            top: 10,
+            left: 10,
             child: FloatingActionButton.small(
-              heroTag: "back_btn", // Unique tag
+              heroTag: "back_btn",
               backgroundColor: Colors.black54,
               child: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => Navigator.of(context).pop(),
@@ -884,71 +903,52 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
     );
   }
 
-  Widget _buildJoggingUI() {
-    if (_steps == -1) {
-      return Container(
-        color: Colors.black,
-        child: Center(
-          child: Text(
-            "Step Sensor Not Available\n(Try walking to wake it up)",
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.redAccent, fontSize: 18),
-          ),
-        ),
-      );
+  // Extracted TTS and State updating logic to keep build clean
+  void _handleTtsAndLogic() {
+    // TTS
+    if (_repCounter.feedback.isNotEmpty) {
+      final msg = _repCounter.feedback;
+      bool isPostureFix = ![
+        "UP",
+        "DOWN",
+        "GO LOWER",
+        "HOLD",
+        "STAND",
+        "LIFT",
+        "LOWER",
+        "EXTEND",
+        "KEEP GOING",
+      ].contains(msg);
+      if (isPostureFix) {
+        bool isWarning = msg.contains("Unclear");
+        TtsService().speakFeedback(
+          msg,
+          key: msg,
+          debounceDuration: isWarning
+              ? const Duration(seconds: 10)
+              : const Duration(seconds: 4),
+        );
+      }
     }
 
-    double progress = _steps / _targetSteps;
-    if (progress > 1.0) progress = 1.0;
-
-    return Container(
-      color: Colors.black,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.directions_run,
-              size: 80,
-              color: Colors.greenAccent,
-            ),
-            const SizedBox(height: 30),
-            const Text(
-              "Jog in Place",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              "Goal: $_targetSteps Steps",
-              style: const TextStyle(color: Colors.white54, fontSize: 16),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: 200,
-              child: LinearProgressIndicator(
-                value: progress,
-                backgroundColor: Colors.grey[800],
-                color: Colors.greenAccent,
-                minHeight: 10,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              "$_steps / $_targetSteps",
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    // State Update
+    if (_reps != _repCounter.count) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          if (_repCounter.count > _reps) {
+            TtsService().speakCount(_repCounter.count);
+          }
+          setState(() => _reps = _repCounter.count);
+          if (_reps > 0 && !_hasStartedTimer) {
+            _hasStartedTimer = true;
+            _startTimer();
+          }
+          if (_reps >= _targetReps && !_isTransitioning) {
+            _handleGoalMet();
+          }
+        }
+      });
+    }
   }
 
   Widget _buildPermissionRequest() {
@@ -958,183 +958,5 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
         child: const Text("Refrest Permission"),
       ),
     );
-  }
-
-  Widget _buildStatsPanel(
-    String currentExercise,
-    int targetReps, {
-    bool isLandscape = false,
-  }) {
-    // Buttons for Landscape Control
-    Widget landscapeControls = Column(
-      children: [
-        const Divider(color: Colors.white24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.cameraswitch, color: Colors.white),
-              onPressed: _switchCamera,
-              tooltip: "Switch Camera",
-            ),
-            IconButton(
-              icon: const Icon(Icons.refresh, color: Colors.white),
-              onPressed: _resetCounter,
-              tooltip: "Reset Counter",
-            ),
-            IconButton(
-              icon: const Icon(Icons.skip_next, color: Colors.redAccent),
-              onPressed: _skipExercise,
-              tooltip: "Skip Exercise",
-            ),
-          ],
-        ),
-      ],
-    );
-
-    List<Widget> children = [
-      if (currentExercise == 'Push-Ups' ||
-          currentExercise == 'Box Push-Ups' ||
-          currentExercise == 'Pike Push-Ups' ||
-          currentExercise == 'Chair Dips' ||
-          currentExercise == 'Floor Dips' ||
-          currentExercise == 'Bird Dog' ||
-          currentExercise == 'Leg Raises' ||
-          currentExercise == 'Squats' ||
-          currentExercise == 'Sit-Ups') ...[
-        // Reps
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: isLandscape
-              ? CrossAxisAlignment.center
-              : CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Reps",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.normal,
-              ),
-            ),
-            Text(
-              "$_reps/$targetReps",
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-
-        // Accuracy
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: isLandscape
-              ? CrossAxisAlignment.center
-              : CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Accuracy",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.normal,
-              ),
-            ),
-            Text(
-              "${_repCounter.accuracy.toStringAsFixed(0)}%",
-              style: TextStyle(
-                color: _repCounter.isProperForm
-                    ? Colors.greenAccent
-                    : Colors.redAccent,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-
-        // Timer
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: isLandscape
-              ? CrossAxisAlignment.center
-              : CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Time",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.normal,
-              ),
-            ),
-            Text(
-              _formatTime(_secondsRemaining),
-              style: TextStyle(
-                color: _secondsRemaining < 10 ? Colors.redAccent : Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ] else ...[
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.fitness_center, color: Colors.white54),
-            const SizedBox(height: 5),
-            Text(
-              currentExercise,
-              style: const TextStyle(color: Colors.white54),
-            ),
-          ],
-        ),
-      ],
-
-      // Skip Button
-      Material(
-        color: Colors.white24,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: _skipExercise,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: const Icon(
-              Icons.skip_next,
-              color: Colors.redAccent,
-              size: 24,
-            ),
-          ),
-        ),
-      ),
-
-      if (isLandscape) landscapeControls,
-    ];
-
-    return Container(
-      width: double.infinity,
-      color: Colors.black,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: isLandscape
-          ? Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: children,
-            )
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: children,
-            ),
-    );
-  }
-
-  String _formatTime(int totalSeconds) {
-    int minutes = totalSeconds ~/ 60;
-    int seconds = totalSeconds % 60;
-    return "${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}";
   }
 }
