@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ai_fitness_tracker/services/settings_service.dart';
 import 'dart:async';
 import 'package:pedometer/pedometer.dart';
 import 'package:ai_fitness_tracker/services/workout_service.dart';
@@ -521,22 +522,90 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
     }
 
     if (_currentExerciseIndex < _exercises.length - 1) {
-      setState(() {
-        _currentExerciseIndex++;
-        _reps = 0;
-        _repCounter.reset();
-        _exerciseStartTime = DateTime.now(); // Reset timer for next
-      });
+      // REST TIMER LOGIC
+      final restSeconds = SettingsService().restTimerSeconds;
+      if (restSeconds > 0 && mounted) {
+        await _showRestTimer(restSeconds);
+      }
 
-      _updateCurrentTargets(); // Update Reps/Steps target for new exercise
-      _updateOrientation();
+      if (mounted) {
+        setState(() {
+          _currentExerciseIndex++;
+          _reps = 0;
+          _repCounter.reset();
+          _exerciseStartTime = DateTime.now(); // Reset timer for next
+          _hasStartedTimer = false; // Reset timer flag
+          _timer?.cancel(); // Ensure old timer is gone
+          _secondsRemaining = _totalTimeLimit;
+        });
 
-      if (_exercises[_currentExerciseIndex] == 'Jogging') {
-        _initPedometer();
+        _updateCurrentTargets(); // Update Reps/Steps target for new exercise
+        _updateOrientation();
+
+        if (_exercises[_currentExerciseIndex] == 'Jogging') {
+          _initPedometer();
+        }
       }
     } else {
       _showSummaryScreen();
     }
+  }
+
+  Future<void> _showRestTimer(int seconds) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF2C313A),
+          title: const Text(
+            "Rest & Recover",
+            style: TextStyle(color: Colors.white),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.timer, color: Colors.blueAccent, size: 40),
+              const SizedBox(height: 16),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: seconds.toDouble(), end: 0),
+                duration: Duration(seconds: seconds),
+                onEnd: () {
+                  if (context.mounted && Navigator.canPop(context)) {
+                    Navigator.of(context).pop();
+                  }
+                },
+                builder: (context, value, child) {
+                  return Text(
+                    "${value.toInt()}s",
+                    style: const TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+              if (_currentExerciseIndex + 1 < _exercises.length)
+                Text(
+                  "Next: ${_exercises[_currentExerciseIndex + 1]}",
+                  style: TextStyle(color: Colors.grey[400]),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                "Skip Rest",
+                style: TextStyle(color: Colors.blueAccent),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _handleGoalMet() {

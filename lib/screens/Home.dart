@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ai_fitness_tracker/screens/Workout_Screen.dart';
 import 'package:ai_fitness_tracker/screens/Analytics.dart';
 import 'package:ai_fitness_tracker/screens/Diet.dart';
@@ -37,7 +38,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadDailyMessage() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();
+      final todayKey = "${now.year}-${now.month}-${now.day}";
+
+      // 1. Check if message locked for today
+      final savedDate = prefs.getString('daily_message_date');
+      if (savedDate == todayKey) {
+        final savedMsg = prefs.getString('daily_message_content');
+        if (savedMsg != null && mounted) {
+          setState(() {
+            _summaryMessage = savedMsg;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
+      // 2. Generate New Message
       final yesterday = now.subtract(const Duration(days: 1));
       final start = DateTime(yesterday.year, yesterday.month, yesterday.day);
       final end = start
@@ -46,26 +64,41 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final calories = await WorkoutLogService().getCaloriesBurned(start, end);
 
-      String message = "";
+      List<String> options = List.from(_motivationalQuotes);
 
-      // 50/50 Chance to show stats IF we have data, otherwise always show quote
-      bool showStats = calories > 0 && Random().nextBool();
-
-      if (showStats) {
-        message =
-            "You burned ${calories.toInt()} calories yesterday! Your consistency is improving. Keep up the momentum! 🔥";
+      if (calories > 0) {
+        // Worked out yesterday -> 1 option added
+        options.add(
+          "You burned ${calories.toInt()} calories yesterday! Consistency pays off. Keep it up! 🔥",
+        );
       } else {
-        message =
-            _motivationalQuotes[Random().nextInt(_motivationalQuotes.length)];
+        // Missed workout -> 3 options added
+        options.add(
+          "Missed yesterday? No worries! Today is a new chance. Let's get moving! 🚀",
+        );
+        options.add(
+          "Consistency is a journey, not a sprint. Let's make up for yesterday today! 💪",
+        );
+        options.add(
+          "Everybody needs a rest day. But today, we're back in action! Let's go! 🔥",
+        );
       }
+
+      // 3. Pick Random
+      final randomMsg = options[Random().nextInt(options.length)];
+
+      // 4. Save
+      await prefs.setString('daily_message_date', todayKey);
+      await prefs.setString('daily_message_content', randomMsg);
 
       if (mounted) {
         setState(() {
-          _summaryMessage = message;
+          _summaryMessage = randomMsg;
           _isLoading = false;
         });
       }
     } catch (e) {
+      debugPrint("Error loading message: $e");
       if (mounted) {
         setState(() {
           _summaryMessage =

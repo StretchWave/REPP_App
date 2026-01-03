@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ai_fitness_tracker/services/settings_service.dart';
+import 'package:ai_fitness_tracker/screens/Login.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -8,16 +11,41 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  // Toggle States
-  bool _pushNotifications = true;
-  bool _emailNotifications = true;
-  bool _goalReminders = true;
-  bool _smsAlerts = false;
-  bool _darkMode = false;
-  bool _soundEffects = true;
-  bool _cameraTracking = true;
-  bool _voiceGuidance = true;
-  bool _aiRecommendations = true;
+  final _settings = SettingsService();
+
+  late bool _pushNotifications;
+  late bool _emailNotifications;
+  late bool _goalReminders;
+  late bool _smsAlerts;
+  late bool _darkMode;
+
+  late bool _cameraTracking;
+  late bool _voiceGuidance;
+
+  late bool _isMetric;
+  late int _restTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  void _loadSettings() {
+    setState(() {
+      _pushNotifications = _settings.pushNotifications;
+      _emailNotifications = _settings.emailNotifications;
+      _goalReminders = _settings.goalReminders;
+      _smsAlerts = _settings.smsAlerts;
+      _darkMode = _settings.darkMode;
+
+      _cameraTracking = _settings.cameraTracking;
+      _voiceGuidance = _settings.voiceGuidance;
+
+      _isMetric = _settings.isMetric;
+      _restTimer = _settings.restTimerSeconds;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,23 +73,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           children: [
             _buildSection("ACCOUNT", [
+              // No Profile Edit yet
+              // _buildSettingItem(title: "Edit Profile", ...),
               _buildSettingItem(
-                title: "Edit Profile",
-                subtitle: "Update your personal information",
-                icon: Icons.person,
-                iconColor: Colors.blue,
-              ),
-              _buildSettingItem(
-                title: "Change Password",
-                subtitle: "Update your password",
-                icon: Icons.lock,
-                iconColor: Colors.amber,
-              ),
-              _buildSettingItem(
-                title: "Connected Accounts",
-                subtitle: "Manage linked accounts",
-                icon: Icons.link,
-                iconColor: Colors.teal,
+                title: "Sign Out",
+                subtitle: "Log out of your account",
+                icon: Icons.logout,
+                iconColor: Colors.orangeAccent,
+                onTap: _signOut,
               ),
             ]),
             const SizedBox(height: 20),
@@ -72,28 +91,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 "Get instant reminders",
                 _pushNotifications,
                 Colors.amber,
-                (val) => setState(() => _pushNotifications = val),
+                (val) {
+                  _settings.setPushNotifications(val);
+                  setState(() => _pushNotifications = val);
+                },
               ),
               _buildToggleItem(
                 "Email Notifications",
                 "Receive weekly progress reports",
                 _emailNotifications,
                 Colors.blue,
-                (val) => setState(() => _emailNotifications = val),
+                (val) {
+                  _settings.setEmailNotifications(val);
+                  setState(() => _emailNotifications = val);
+                },
               ),
               _buildToggleItem(
                 "Goal Reminders",
                 "Daily motivation alerts",
                 _goalReminders,
                 Colors.red,
-                (val) => setState(() => _goalReminders = val),
+                (val) {
+                  _settings.setGoalReminders(val);
+                  setState(() => _goalReminders = val);
+                },
               ),
               _buildToggleItem(
                 "SMS Alerts",
                 "Text message reminders",
                 _smsAlerts,
                 Colors.grey,
-                (val) => setState(() => _smsAlerts = val),
+                (val) {
+                  _settings.setSmsAlerts(val);
+                  setState(() => _smsAlerts = val);
+                },
               ),
             ]),
             const SizedBox(height: 20),
@@ -101,22 +132,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSection("PREFERENCES", [
               _buildSettingItem(
                 title: "Units",
-                subtitle: "Metric or Imperial",
+                subtitle: _isMetric ? "Metric (kg, cm)" : "Imperial (lbs, in)",
                 icon: Icons.straighten,
                 iconColor: Colors.orange,
-                trailing: const Text(
-                  "Metric",
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-              _buildSettingItem(
-                title: "Language",
-                subtitle: "App language",
-                icon: Icons.language,
-                iconColor: Colors.lightBlue,
-                trailing: const Text(
-                  "English",
-                  style: TextStyle(color: Colors.grey),
+                trailing: Switch(
+                  value: _isMetric,
+                  onChanged: (val) {
+                    _settings.setIsMetric(val);
+                    setState(() => _isMetric = val);
+                  },
+                  activeColor: Colors.orange,
+                  activeTrackColor: Colors.orange.withOpacity(0.5),
                 ),
               ),
               _buildToggleItem(
@@ -124,14 +150,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 "Toggle dark theme",
                 _darkMode,
                 Colors.purple,
-                (val) => setState(() => _darkMode = val),
-              ),
-              _buildToggleItem(
-                "Sound Effects",
-                "App sounds and music",
-                _soundEffects,
-                Colors.deepPurple,
-                (val) => setState(() => _soundEffects = val),
+                (val) {
+                  _settings.setDarkMode(val);
+                  setState(() => _darkMode = val);
+                },
               ),
             ]),
             const SizedBox(height: 20),
@@ -139,34 +161,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSection("WORKOUT", [
               _buildSettingItem(
                 title: "Rest Timer",
-                subtitle: "Default rest between sets",
+                subtitle: "Rest between sets",
                 icon: Icons.timer,
                 iconColor: Colors.grey,
-                trailing: const Text(
-                  "60s",
-                  style: TextStyle(color: Colors.grey),
+                trailing: Text(
+                  "${_restTimer}s",
+                  style: const TextStyle(color: Colors.grey),
                 ),
+                onTap: _showRestTimerDialog,
               ),
               _buildToggleItem(
                 "Camera Tracking",
                 "AI form correction",
                 _cameraTracking,
                 Colors.blueGrey,
-                (val) => setState(() => _cameraTracking = val),
+                (val) {
+                  _settings.setCameraTracking(val);
+                  setState(() => _cameraTracking = val);
+                },
               ),
               _buildToggleItem(
                 "Voice Guidance",
                 "Audio workout instructions",
                 _voiceGuidance,
                 Colors.teal,
-                (val) => setState(() => _voiceGuidance = val),
-              ),
-              _buildToggleItem(
-                "AI Recommendations",
-                "Smart workout suggestions",
-                _aiRecommendations,
-                Colors.grey,
-                (val) => setState(() => _aiRecommendations = val),
+                (val) {
+                  _settings.setVoiceGuidance(val);
+                  setState(() => _voiceGuidance = val);
+                },
               ),
             ]),
             const SizedBox(height: 20),
@@ -217,31 +239,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             _buildSection("DANGER ZONE", [
               _buildSettingItem(
-                title: "Clear Data",
-                subtitle: "Reset all local data",
-                icon: Icons.delete_outline,
-                iconColor: Colors.red.withOpacity(0.5),
-                iconBackgroundColor: Colors.red.withOpacity(0.1),
-                titleColor: Colors.redAccent,
-              ),
-              _buildSettingItem(
                 title: "Delete Account",
                 subtitle: "Permanently delete your account",
-                icon: Icons.close,
+                icon: Icons.delete_forever,
                 iconColor: Colors.red,
                 iconBackgroundColor: Colors.red.withOpacity(0.1),
                 titleColor: Colors.red,
+                onTap: _deleteAccount,
               ),
             ]),
             const SizedBox(height: 40),
 
-            const SizedBox(height: 20),
-
-            const SizedBox(height: 20),
-
             const Center(
               child: Text(
-                "Fitness Trainer v1.0.0\n© 2026 All Rights Reserved",
+                "Fitness Trainer v1.1.0\n© 2026",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey, fontSize: 12),
               ),
@@ -249,6 +260,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 40),
           ],
         ),
+      ),
+    );
+  }
+
+  // Helpers
+  Future<void> _signOut() async {
+    await Supabase.instance.client.auth.signOut();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (c) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    // Show confirmation
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Account?"),
+        content: const Text(
+          "This action cannot be undone. All your data will be lost.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Account deletion request submitted.")),
+        );
+        await _signOut();
+      }
+    }
+  }
+
+  Future<void> _showRestTimerDialog() async {
+    int temp = _restTimer;
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Set Rest Timer"),
+        content: StatefulBuilder(
+          builder: (context, setSt) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "$temp seconds",
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Slider(
+                value: temp.toDouble(),
+                min: 15,
+                max: 180,
+                divisions: 11,
+                label: "$temp s",
+                onChanged: (val) => setSt(() => temp = val.toInt()),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              _settings.setRestTimerSeconds(temp);
+              setState(() => _restTimer = temp);
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
       ),
     );
   }
@@ -288,11 +388,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Color? iconBackgroundColor,
     Color? titleColor,
     Widget? trailing,
+    VoidCallback? onTap,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -329,7 +430,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               if (trailing != null)
                 trailing
-              else
+              else if (onTap != null)
                 const Icon(
                   Icons.arrow_forward_ios,
                   size: 14,
@@ -350,10 +451,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ValueChanged<bool> onChanged,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 8,
-      ), // slightly less vertical padding for toggles
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           Container(
@@ -362,12 +460,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               color: iconColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              // Auto-determine icon helper based on title content for similar look
-              _getIconForToggle(title),
-              color: iconColor,
-              size: 20,
-            ),
+            child: Icon(_getIconForToggle(title), color: iconColor, size: 20),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -394,11 +487,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: value,
             onChanged: onChanged,
             activeColor: Colors.white,
-            activeTrackColor: const Color(
-              0xFF5D6672,
-            ), // Dark Slate/Blueish track
-            inactiveThumbColor: Colors.white,
-            inactiveTrackColor: Colors.grey.withOpacity(0.3),
+            activeTrackColor: const Color(0xFF5D6672),
           ),
         ],
       ),
@@ -415,7 +504,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (title.contains("Camera")) return Icons.camera_alt;
     if (title.contains("Voice")) return Icons.record_voice_over;
     if (title.contains("AI")) return Icons.smart_toy;
-    if (title.contains("Sharing")) return Icons.visibility;
     return Icons.circle;
   }
 }

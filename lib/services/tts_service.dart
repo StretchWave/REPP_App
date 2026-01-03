@@ -1,4 +1,5 @@
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:ai_fitness_tracker/services/settings_service.dart';
 
 class TtsService {
   static final TtsService _instance = TtsService._internal();
@@ -40,6 +41,8 @@ class TtsService {
   /// Speaks the count (High Priority)
   /// We usually want the count to interrupt or be immediate.
   Future<void> speakCount(int count) async {
+    if (!SettingsService().voiceGuidance) return;
+
     // Stop any current speech (like a long tip) to say the number
     await _flutterTts.stop();
     await _flutterTts.speak(count.toString());
@@ -52,6 +55,7 @@ class TtsService {
     String? key,
     Duration? debounceDuration,
   }) async {
+    if (!SettingsService().voiceGuidance) return;
     if (_isSpeaking) return; // Don't interrupt unless it's a count
 
     final now = DateTime.now();
