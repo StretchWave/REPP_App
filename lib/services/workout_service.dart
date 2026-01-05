@@ -9,22 +9,7 @@ class WorkoutService {
   factory WorkoutService() => _instance;
   WorkoutService._internal();
 
-  // Debug: Offset to simulate future/past dates
-  Duration _debugOffset = Duration.zero;
-
-  void debugSetOffset(Duration offset) {
-    _debugOffset = offset;
-  }
-
-  void debugAdvanceDay() {
-    _debugOffset += const Duration(days: 1);
-  }
-
-  void debugResetToToday() {
-    _debugOffset = Duration.zero;
-  }
-
-  DateTime get now => DateTime.now().add(_debugOffset);
+  DateTime get now => DateTime.now();
 
   /// Returns the key for today's workout data: "workout_progress_YYYY-MM-DD"
   String _getTodayKey() {
@@ -84,11 +69,5 @@ class WorkoutService {
       return progress[exerciseName]['isCompleted'] == true;
     }
     return false;
-  }
-
-  /// Clears today's progress (Dev utility)
-  Future<void> clearTodayProgress() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_getTodayKey());
   }
 }

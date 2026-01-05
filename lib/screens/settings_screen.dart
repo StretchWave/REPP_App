@@ -21,6 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   late bool _cameraTracking;
   late bool _voiceGuidance;
+  late bool _showSkeleton;
 
   late bool _isMetric;
   late int _restTimer;
@@ -41,6 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       _cameraTracking = _settings.cameraTracking;
       _voiceGuidance = _settings.voiceGuidance;
+      _showSkeleton = _settings.showSkeleton;
 
       _isMetric = _settings.isMetric;
       _restTimer = _settings.restTimerSeconds;
@@ -188,6 +190,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 (val) {
                   _settings.setVoiceGuidance(val);
                   setState(() => _voiceGuidance = val);
+                },
+              ),
+              _buildToggleItem(
+                "Show Skeleton",
+                "Visible AI skeleton overlay",
+                _showSkeleton,
+                Colors.green,
+                (val) {
+                  _settings.setShowSkeleton(val);
+                  setState(() => _showSkeleton = val);
                 },
               ),
             ]),

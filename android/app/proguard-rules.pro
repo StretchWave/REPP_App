@@ -19,3 +19,15 @@
 # Fix for Flutter deferred components / Play Core missing classes
 -dontwarn com.google.android.play.core.**
 -dontwarn io.flutter.embedding.engine.deferredcomponents.**
+
+# Supabase & JSON Serialization Protection
+-keep class io.supabase.** { *; }
+-keep class com.supabase.** { *; }
+-keep class * implements com.google.gson.TypeAdapterFactory
+-keep class * implements com.google.gson.JsonSerializer
+-keep class * implements com.google.gson.JsonDeserializer
+
+# Http Client
+-keep class okhttp3.** { *; }
+-keep interface okhttp3.** { *; }
+-dontwarn okhttp3.**

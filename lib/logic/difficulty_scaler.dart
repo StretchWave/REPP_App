@@ -23,8 +23,8 @@ class DifficultyScaler {
 
     double normalized = (rawScore / maxRawScore) * 100;
 
-    // Clamp between 1 and 100
-    int level = normalized.round().clamp(1, 100);
+    // Clamp between 0 and 100
+    int level = normalized.round().clamp(0, 100);
 
     return level;
   }

@@ -8,6 +8,8 @@ import 'package:ai_fitness_tracker/screens/profile_screen.dart';
 import 'package:ai_fitness_tracker/screens/recommendation_screen.dart';
 import 'package:ai_fitness_tracker/services/workout_log_service.dart';
 import 'package:ai_fitness_tracker/widgets/ai_status_overlay.dart';
+import 'package:ai_fitness_tracker/screens/calibration_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +21,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String _summaryMessage = "Loading daily motivation...";
   bool _isLoading = true;
+  int _powerLevel = 0;
+  Map<String, dynamic>? _userData;
 
   final List<String> _motivationalQuotes = [
     "Consistency is key! Keep showing up.",
@@ -40,6 +44,33 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       GlobalAiOverlay.startLoading(context);
     });
+  }
+
+  bool _isTodayWorkoutDay(int freq) {
+    // 1 = Mon, 7 = Sun
+    final weekday = DateTime.now().weekday;
+
+    switch (freq) {
+      case 3:
+        // Mon(1), Wed(3), Fri(5)
+        return weekday == 1 || weekday == 3 || weekday == 5;
+      case 4:
+        // Mon(1), Tue(2), Thu(4), Fri(5)
+        return weekday == 1 || weekday == 2 || weekday == 4 || weekday == 5;
+      case 5:
+        // Mon(1), Tue(2), Wed(3), Fri(5), Sat(6)
+        return weekday == 1 ||
+            weekday == 2 ||
+            weekday == 3 ||
+            weekday == 5 ||
+            weekday == 6;
+      case 6:
+        // Mon(1) -> Sat(6)
+        return weekday != 7;
+      default:
+        // Fallback
+        return weekday == 1 || weekday == 3 || weekday == 5;
+    }
   }
 
   Future<void> _loadDailyMessage() async {
@@ -97,6 +128,18 @@ class _HomeScreenState extends State<HomeScreen> {
       await prefs.setString('daily_message_date', todayKey);
       await prefs.setString('daily_message_content', randomMsg);
 
+      // 5. Fetch Power Level for Navigation
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select()
+            .eq('id', user.id)
+            .single();
+        _userData = profile;
+        _powerLevel = profile['power_level'] ?? 0;
+      }
+
       if (mounted) {
         setState(() {
           _summaryMessage = randomMsg;
@@ -133,16 +176,56 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 20),
                   _buildSummaryCard(),
                   const SizedBox(height: 24),
-                  _buildMenuOption(
-                    icon: Icons.fitness_center,
-                    title: 'Workout',
-                    subtitle: 'AI-powered training plans',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const WorkoutScreen(),
-                        ),
+                  const SizedBox(height: 24),
+                  // Workout Button Logic
+                  Builder(
+                    builder: (context) {
+                      final freq = _userData?['workout_frequency'] ?? 3;
+                      final isWorkoutDay = _isTodayWorkoutDay(freq);
+                      final isRest = !isWorkoutDay;
+
+                      return _buildMenuOption(
+                        icon: isRest
+                            ? Icons.spa_outlined
+                            : Icons.fitness_center,
+                        title: isRest ? 'Rest Day 😴' : 'Workout',
+                        subtitle: isRest
+                            ? 'Recovery is key to growth'
+                            : 'AI-powered training plans',
+                        color: isRest ? const Color(0xFF3E444E) : null,
+                        onTap: () {
+                          if (_isLoading) return; // Wait for profile load
+
+                          if (isRest) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "It's a rest day! Your muscles grow while you rest. Take it easy.",
+                                ),
+                                backgroundColor: Colors.blueGrey,
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (_powerLevel == 0) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CalibrationScreen(
+                                  userData: _userData ?? {},
+                                ),
+                              ),
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const WorkoutScreen(),
+                              ),
+                            );
+                          }
+                        },
                       );
                     },
                   ),
@@ -318,13 +401,14 @@ class _HomeScreenState extends State<HomeScreen> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    Color? color,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         decoration: BoxDecoration(
-          color: const Color(0xFF2C313A), // Dark button background
+          color: color ?? const Color(0xFF2C313A), // Dark button background
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(

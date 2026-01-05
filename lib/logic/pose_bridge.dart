@@ -12,11 +12,12 @@ class PoseBridge {
         final List<Map<String, double>> mapped = [];
 
         for (int i = 0; i < pointCount; i++) {
+          final int offset = i * 4;
           mapped.add({
-            'x': (flatList[i * 4] as num).toDouble(),
-            'y': (flatList[i * 4 + 1] as num).toDouble(),
-            'z': (flatList[i * 4 + 2] as num).toDouble(),
-            'visibility': (flatList[i * 4 + 3] as num).toDouble(),
+            'x': (flatList[offset] as num).toDouble(),
+            'y': (flatList[offset + 1] as num).toDouble(),
+            'z': (flatList[offset + 2] as num).toDouble(),
+            'visibility': (flatList[offset + 3] as num).toDouble(),
           });
         }
 

@@ -188,4 +188,57 @@ class WorkoutLogService {
       return 0;
     }
   }
+
+  /// Calculates the maximum streak ever achieved by the user
+  Future<int> calculateMaxStreak() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return 0;
+
+    try {
+      final response = await _client
+          .from('workout_logs')
+          .select('created_at')
+          .eq('user_id', user.id);
+
+      final List<dynamic> data = response;
+      if (data.isEmpty) return 0;
+
+      // Extract unique dates
+      final Set<DateTime> uniqueDates = {};
+      for (var row in data) {
+        final dt = DateTime.parse(row['created_at']).toLocal();
+        uniqueDates.add(DateTime(dt.year, dt.month, dt.day));
+      }
+      final sortedDates = uniqueDates.toList()..sort();
+
+      if (sortedDates.isEmpty) return 0;
+
+      int maxStreak = 0;
+      int currentStreak = 0;
+      DateTime? lastDate;
+
+      for (var date in sortedDates) {
+        if (lastDate == null) {
+          currentStreak = 1;
+        } else {
+          final difference = date.difference(lastDate).inDays;
+          if (difference == 1) {
+            currentStreak++;
+          } else {
+            currentStreak = 1;
+          }
+        }
+        if (currentStreak > maxStreak) {
+          maxStreak = currentStreak;
+        }
+        lastDate = date;
+      }
+
+      return maxStreak;
+    } catch (e) {
+      // ignore: avoid_print
+      print("Error calculating max streak: $e");
+      return 0;
+    }
+  }
 }

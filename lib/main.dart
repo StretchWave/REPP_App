@@ -32,6 +32,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'REPP',
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
         return GlobalAiOverlay(child: child!);

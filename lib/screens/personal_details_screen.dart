@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ai_fitness_tracker/screens/FitnessGoal.dart';
+import 'package:ai_fitness_tracker/screens/fitness_goal_screen.dart';
 
 class PersonalDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> signUpData;
@@ -24,9 +24,12 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
   String? _selectedBodyType;
 
   final Map<String, String> _bodyTypeDescriptions = {
-    'Ectomorph': 'More rest, higher calories, strength focus',
-    'Mesomorph': 'Balanced training',
-    'Endomorph': 'Higher reps, cardio volume, shorter rest',
+    'Ectomorph':
+        'Fast metabolism: burns calories quickly, making it hard to gain weight or muscle.',
+    'Mesomorph':
+        'Efficient metabolism: gains muscle easily, but can also gain fat if too many calories are consumed.',
+    'Endomorph':
+        'Slow metabolism: stores fat easily and finds it harder to lose weight.',
   };
 
   void _onContinue() {

@@ -14,6 +14,8 @@ enum DifficultyTier {
 
 enum ExerciseType { reps, duration }
 
+enum BodyPart { upperBody, lowerBody }
+
 /// Model representing a specific exercise configuration
 class Exercise {
   final String id;
@@ -22,6 +24,7 @@ class Exercise {
   final ExerciseType type;
   final double baseValue; // Base reps or seconds
   final double levelMultiplier; // How much it increases per level
+  final List<BodyPart> requiredBodyParts;
 
   const Exercise({
     required this.id,
@@ -30,6 +33,7 @@ class Exercise {
     required this.type,
     this.baseValue = 10.0,
     this.levelMultiplier = 0.5,
+    required this.requiredBodyParts,
   });
 }
 
@@ -73,6 +77,7 @@ class LevelProgressionService {
       type: ExerciseType.reps,
       baseValue: 10,
       levelMultiplier: 0.5,
+      requiredBodyParts: [BodyPart.upperBody],
     ),
     Exercise(
       id: 'floor_dips',
@@ -81,6 +86,7 @@ class LevelProgressionService {
       type: ExerciseType.reps,
       baseValue: 10,
       levelMultiplier: 0.5,
+      requiredBodyParts: [BodyPart.upperBody],
     ),
     Exercise(
       id: 'bird_dogs',
@@ -89,6 +95,7 @@ class LevelProgressionService {
       type: ExerciseType.reps,
       baseValue: 12,
       levelMultiplier: 0.4,
+      requiredBodyParts: [BodyPart.upperBody, BodyPart.lowerBody],
     ),
     Exercise(
       id: 'squats',
@@ -97,6 +104,7 @@ class LevelProgressionService {
       type: ExerciseType.reps,
       baseValue: 15,
       levelMultiplier: 0.6, // Legs can handle more vol
+      requiredBodyParts: [BodyPart.lowerBody],
     ),
 
     // Tier 2 (Intermediate)
@@ -107,6 +115,7 @@ class LevelProgressionService {
       type: ExerciseType.reps,
       baseValue: 8, // Harder than Box Pushups
       levelMultiplier: 0.4,
+      requiredBodyParts: [BodyPart.upperBody],
     ),
     Exercise(
       id: 'chair_dips',
@@ -115,6 +124,7 @@ class LevelProgressionService {
       type: ExerciseType.reps,
       baseValue: 10,
       levelMultiplier: 0.5,
+      requiredBodyParts: [BodyPart.upperBody],
     ),
     Exercise(
       id: 'situps',
@@ -123,6 +133,7 @@ class LevelProgressionService {
       type: ExerciseType.reps,
       baseValue: 15,
       levelMultiplier: 0.5,
+      requiredBodyParts: [BodyPart.upperBody],
     ),
 
     // Tier 3 (Advanced)
@@ -133,6 +144,7 @@ class LevelProgressionService {
       type: ExerciseType.reps,
       baseValue: 5, // Much harder
       levelMultiplier: 0.3,
+      requiredBodyParts: [BodyPart.upperBody],
     ),
     Exercise(
       id: 'leg_raises',
@@ -141,6 +153,7 @@ class LevelProgressionService {
       type: ExerciseType.reps,
       baseValue: 8,
       levelMultiplier: 0.4,
+      requiredBodyParts: [BodyPart.lowerBody],
     ),
     Exercise(
       id: 'jogging',
@@ -149,28 +162,36 @@ class LevelProgressionService {
       type: ExerciseType.duration,
       baseValue: 300, // 5 minutes (in seconds)
       levelMultiplier: 15, // +15 sec per level
+      requiredBodyParts: [BodyPart.lowerBody],
     ),
   ];
 
   // --- Workout Generation Logic ---
 
   /// Generates a workout routine based on the user's level (1-100)
-  List<WorkoutItem> getWorkoutForLevel(int level) {
+  List<WorkoutItem> getWorkoutForLevel(
+    int level, {
+    bool canFocusUpperBody = true,
+    bool canFocusLowerBody = true,
+  }) {
     // Clamp level to valid range
-    final int safeLevel = level.clamp(1, 150); // Allow >100 for super users
+    final int safeLevel = level.clamp(
+      0,
+      150,
+    ); // Allow 0 and >100 for super users
 
     // 1. Determine Phase & Filter Exercises
-    List<Exercise> eligibleExercises = [];
+    List<Exercise> levelExercises = [];
 
     if (safeLevel <= 20) {
       // Phase 1: Beginner
-      eligibleExercises = _allExercises
+      levelExercises = _allExercises
           .where((e) => e.tier == DifficultyTier.tier1)
           .toList();
     } else if (safeLevel <= 40) {
       // Phase 2: Intermediate
       // Tier 2 main + Tier 1 (Warmups/Volume)
-      eligibleExercises = _allExercises
+      levelExercises = _allExercises
           .where(
             (e) =>
                 e.tier == DifficultyTier.tier1 ||
@@ -180,12 +201,27 @@ class LevelProgressionService {
     } else if (safeLevel <= 60) {
       // Phase 3: Advanced
       // All Tiers allowed, focus shifting to Tier 3
-      eligibleExercises = _allExercises.toList();
+      levelExercises = _allExercises.toList();
     } else {
       // Phase 4: Elite (61+)
       // High volume, all tiers
-      eligibleExercises = _allExercises.toList();
+      levelExercises = _allExercises.toList();
     }
+
+    // Then filter by Physical Limitations
+    List<Exercise> eligibleExercises = levelExercises.where((e) {
+      // If exercise needs upper body, and user can't do upper body -> exclude
+      if (e.requiredBodyParts.contains(BodyPart.upperBody) &&
+          !canFocusUpperBody) {
+        return false;
+      }
+      // If exercise needs lower body, and user can't do lower body -> exclude
+      if (e.requiredBodyParts.contains(BodyPart.lowerBody) &&
+          !canFocusLowerBody) {
+        return false;
+      }
+      return true;
+    }).toList();
 
     // 2. Select Exercises
     // We prioritize higher tier exercises for higher levels.
@@ -283,14 +319,14 @@ class LevelProgressionService {
           .select('power_level')
           .eq('id', user.id)
           .single();
-      final int currentLevel = profile['power_level'] ?? 1;
+      final int currentLevel = profile['power_level'] ?? 0;
 
       // 2. Calculate Adjustment
       final int adjustment = await checkPowerLevelAdjustment();
       if (adjustment == 0) return null;
 
       // 3. Apply Update
-      final newLevel = (currentLevel + adjustment).clamp(1, 999);
+      final newLevel = (currentLevel + adjustment).clamp(0, 999);
 
       // Safety: Don't update if no change (e.g. already lvl 1 and penalty)
       if (newLevel == currentLevel) return null;
@@ -299,7 +335,10 @@ class LevelProgressionService {
       // spamming level ups every day of a streak. For now, we allow it.
       await Supabase.instance.client
           .from('profiles')
-          .update({'power_level': newLevel})
+          .update({
+            'power_level': newLevel,
+            'power_level_updated_at': DateTime.now().toIso8601String(),
+          })
           .eq('id', user.id);
 
       return newLevel;

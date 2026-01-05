@@ -1,4 +1,5 @@
 import 'package:ai_fitness_tracker/screens/login_screen.dart';
+import 'package:ai_fitness_tracker/screens/rankings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ai_fitness_tracker/screens/settings_screen.dart';
@@ -26,6 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _workoutsCount = 0;
   int _totalCalories = 0;
   int _streak = 0; // Placeholder for now
+  int _rank = 0;
 
   // Body Metrics
   double _height = 0;
@@ -38,6 +40,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _duration = "4 Weeks";
   String _frequency = "3 days/week";
   String _intensity = "Moderate";
+
+  // Health
+  bool _physicallyHandicapped = false;
+  bool _canFocusUpperBody = true;
+  bool _canFocusLowerBody = true;
 
   bool _isLoading = true;
 
@@ -69,6 +76,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .eq('id', user.id)
             .single();
 
+        // Auto-repair: If profile email is null, update it from Auth user
+        if (data['email'] == null && user.email != null) {
+          debugPrint("Repairing missing profile email...");
+          await Supabase.instance.client
+              .from('profiles')
+              .update({'email': user.email})
+              .eq('id', user.id);
+        }
+
         // 3. Workout Stats (Aggregate)
         final workoutData = await Supabase.instance.client
             .from('workout_logs')
@@ -81,8 +97,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           cTotal += (w['calories_burned'] as num? ?? 0).toDouble();
         }
 
-        // 4. Fetch Streak
+        // 4. Fetch Streak & Max Streak
         int streak = await WorkoutLogService().calculateCurrentStreak();
+        int maxStreak = await WorkoutLogService().calculateMaxStreak();
+
+        // Update Max Streak in Profile if needed
+        int currentProfileMaxStreak = data['max_streak'] ?? 0;
+        if (maxStreak > currentProfileMaxStreak) {
+          await Supabase.instance.client
+              .from('profiles')
+              .update({'max_streak': maxStreak})
+              .eq('id', user.id);
+        }
 
         // 5. Check Level Progression
         await LevelProgressionService().evaluateAndApplyPowerLevelUpdate();
@@ -94,6 +120,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .eq('id', user.id)
             .single();
         data['power_level'] = updatedProfile['power_level'];
+
+        // 6. Calculate Rank (Approximation)
+        // Count users with more power level, or same power level but higher streak, etc.
+        // For simple MVP display:
+        // We will just show "Rank #?" until they open the full list, OR
+        // perform a count query.
+
+        final countResponse = await Supabase.instance.client
+            .from('profiles')
+            .count(CountOption.exact)
+            .gt('power_level', data['power_level'] ?? 0);
+
+        // Rough rank = count of people with STRICTLY higher power level + 1
+        // (Ignoring tie breaking with max_streak for the badge for speed)
+        int rank = (countResponse) + 1;
 
         if (mounted) {
           setState(() {
@@ -110,6 +151,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _duration = data['goal_timeline'] ?? "4 Weeks";
             _frequency = "${data['workout_frequency'] ?? 3} days/week";
             _intensity = data['goal_intensity'] ?? "Moderate";
+
+            _physicallyHandicapped = data['physically_handicapped'] ?? false;
+            _canFocusUpperBody = data['can_focus_upper_body'] ?? true;
+            _canFocusLowerBody = data['can_focus_lower_body'] ?? true;
 
             // Infer Goal
             if (_intensity.contains("Intense"))
@@ -128,6 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _workoutsCount = wCount;
             _totalCalories = cTotal.toInt();
             _streak = streak;
+            _rank = rank;
             _isLoading = false;
           });
         }
@@ -136,9 +182,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       debugPrint("Error fetching profile: $e");
       if (mounted) {
         setState(() {
-          _fullName = "Error";
+          // Don't overwrite name with "Error"
+          if (_fullName == "Loading...") {
+            _fullName = "User";
+          }
           _isLoading = false;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to load profile data: $e"),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       }
     }
   }
@@ -267,10 +322,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Colors.amber,
                       ),
                       const SizedBox(width: 8),
-                      _buildBadge(
-                        "Top 10%",
-                        Icons.local_fire_department,
-                        Colors.orange,
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RankingsScreen(),
+                            ),
+                          );
+                        },
+                        child: _buildBadge(
+                          "Rank #$_rank",
+                          Icons.emoji_events,
+                          Colors.orange,
+                        ),
                       ),
                     ],
                   ),
@@ -340,8 +405,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 16),
 
                   _buildInfoSection("Health Information", [
-                    {"Medical Conditions": "None"},
-                    {"Physical Limitations": "None"},
+                    {
+                      "Physical Limitations": _physicallyHandicapped
+                          ? [
+                                  if (!_canFocusUpperBody)
+                                    "Upper Body Restricted",
+                                  if (!_canFocusLowerBody)
+                                    "Lower Body Restricted",
+                                ].join(", ").isEmpty
+                                ? "General Limitation"
+                                : [
+                                    if (!_canFocusUpperBody)
+                                      "Upper Body Restricted",
+                                    if (!_canFocusLowerBody)
+                                      "Lower Body Restricted",
+                                  ].join(", ")
+                          : "None",
+                    },
                   ], icon: Icons.medical_services_outlined),
                   const SizedBox(height: 24),
 
@@ -377,26 +457,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-
-                  // Settings Menu
-                  _buildSectionHeader("Settings"),
-                  const SizedBox(height: 8),
-                  _buildSettingsItem(
-                    "Notifications",
-                    Icons.notifications,
-                    Colors.amber,
-                  ),
-                  _buildSettingsItem(
-                    "Privacy & Security",
-                    Icons.lock,
-                    Colors.yellow,
-                  ),
-                  _buildSettingsItem(
-                    "Help & Support",
-                    Icons.help_outline,
-                    Colors.redAccent,
-                  ),
-                  const SizedBox(height: 32),
 
                   // Logout
                   SizedBox(
@@ -900,6 +960,183 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showEditHealthInformation() {
+    bool isHandicapped = _physicallyHandicapped;
+    bool canUpper = _canFocusUpperBody;
+    bool canLower = _canFocusLowerBody;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                "Edit Health Information",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.indigo[900],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Expanded(
+                child: ListView(
+                  children: [
+                    _buildTextFieldLabel("Physical Limitations"),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setModalState(() {
+                                isHandicapped = true;
+                                // Default to selecting at least one if switching to handicapped
+                                if (!canUpper && !canLower) {
+                                  canUpper = true;
+                                  canLower = true;
+                                }
+                              }),
+                              child: Container(
+                                alignment: Alignment.center,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isHandicapped
+                                      ? Colors.red[50]
+                                      : Colors.grey[100],
+                                  border: Border.all(
+                                    color: isHandicapped
+                                        ? Colors.red
+                                        : Colors.transparent,
+                                    width: 1.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'Yes, I have limitations',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isHandicapped
+                                        ? Colors.red
+                                        : Colors.black54,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setModalState(() {
+                                isHandicapped = false;
+                                canUpper = true;
+                                canLower = true;
+                              }),
+                              child: Container(
+                                alignment: Alignment.center,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: !isHandicapped
+                                      ? Colors.green[50]
+                                      : Colors.grey[100],
+                                  border: Border.all(
+                                    color: !isHandicapped
+                                        ? Colors.green
+                                        : Colors.transparent,
+                                    width: 1.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'No limitations',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: !isHandicapped
+                                        ? Colors.green
+                                        : Colors.black54,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isHandicapped) ...[
+                      _buildTextFieldLabel("Usable Muscle Groups"),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey[200]!),
+                        ),
+                        child: Column(
+                          children: [
+                            CheckboxListTile(
+                              title: const Text("Can do Upper Body"),
+                              subtitle: const Text("Arms, Chest, Back, etc."),
+                              value: canUpper,
+                              contentPadding: EdgeInsets.zero,
+                              activeColor: Colors.blue,
+                              onChanged: (val) =>
+                                  setModalState(() => canUpper = val ?? false),
+                            ),
+                            CheckboxListTile(
+                              title: const Text("Can do Lower Body"),
+                              subtitle: const Text("Legs, Squats, etc."),
+                              value: canLower,
+                              contentPadding: EdgeInsets.zero,
+                              activeColor: Colors.blue,
+                              onChanged: (val) =>
+                                  setModalState(() => canLower = val ?? false),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _updateProfile({
+                    'physically_handicapped': isHandicapped,
+                    'can_focus_upper_body': isHandicapped ? canUpper : true,
+                    'can_focus_lower_body': isHandicapped ? canLower : true,
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6C757D),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text(
+                  "Save Changes",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // Helpers for Dialogs
   Widget _buildTextFieldLabel(String text) {
     return Padding(
@@ -1022,6 +1259,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _showEditBodyMetrics();
                   else if (title.contains("Fitness Goals"))
                     _showEditFitnessGoals();
+                  else if (title.contains("Health Information"))
+                    _showEditHealthInformation();
                 },
                 child: const Text(
                   "Edit",
@@ -1149,31 +1388,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 4),
         Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10)),
       ],
-    );
-  }
-
-  Widget _buildSettingsItem(String title, IconData icon, Color iconColor) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: iconColor),
-        title: Text(
-          title,
-          style: const TextStyle(color: Colors.black, fontSize: 14),
-        ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios,
-          size: 14,
-          color: Colors.grey,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-        dense: true,
-        onTap: () {},
-      ),
     );
   }
 }

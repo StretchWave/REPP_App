@@ -79,22 +79,36 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
   double _bodyWeight = 70.0;
   bool _hasStartedTimer = false;
 
+  late ValueNotifier<int> _repNotifier;
+  late ValueNotifier<String> _feedbackNotifier;
+  late ValueNotifier<double> _accuracyNotifier;
+  late ValueNotifier<bool> _isProperFormNotifier;
+  late ValueNotifier<List<Map<String, double>>> _skeletonNotifier;
+  StreamSubscription? _poseSubscription;
+
   @override
   void initState() {
     super.initState();
+    _repNotifier = ValueNotifier<int>(0);
+    _feedbackNotifier = ValueNotifier<String>("");
+    _accuracyNotifier = ValueNotifier<double>(100.0);
+    _isProperFormNotifier = ValueNotifier<bool>(true);
+    _skeletonNotifier = ValueNotifier<List<Map<String, double>>>([]);
+
     TtsService(); // Warm up TTS engine
     _checkPermission();
     _loadUserProfile();
+    _startPoseStream();
 
     // Initialize Workout Data
     if (widget.workoutPlan != null && widget.workoutPlan!.isNotEmpty) {
       _plan = widget.workoutPlan!;
       _exercises = _plan.map((e) => e['title'] as String).toList();
+      _updateCurrentTargets();
     } else {
       _exercises = List.from(_defaultExercises);
+      _updateCurrentTargets();
     }
-
-    _updateCurrentTargets();
 
     // Default orientation until loaded
     _updateOrientation();
@@ -102,6 +116,23 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
 
     // Check for already completed exercises
     _loadInitialProgress();
+  }
+
+  void _startPoseStream() {
+    _poseSubscription?.cancel();
+    _poseSubscription = _bridge.poseStream.listen((landmarks) {
+      if (!mounted) return;
+
+      // 1. Update Skeleton
+      _skeletonNotifier.value = landmarks;
+
+      // 2. Process Landmarks
+      final currentExercise = _exercises[_currentExerciseIndex];
+      if (_plan.isNotEmpty || _defaultExercises.contains(currentExercise)) {
+        _repCounter.processLandmarks(landmarks, currentExercise);
+        _handleTtsAndLogic();
+      }
+    });
   }
 
   Future<void> _loadUserProfile() async {
@@ -695,15 +726,6 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
                   onPressed: _resetCounter,
                   tooltip: "Reset Counter",
                 ),
-                // Skip to Summary
-                IconButton(
-                  icon: const Icon(Icons.exit_to_app, color: Colors.orange),
-                  onPressed: () {
-                    // Just skip entire workout to summary
-                    _showSummaryScreen();
-                  },
-                  tooltip: "Finish & View Summary",
-                ),
               ],
             ),
       body: isLandscape
@@ -713,9 +735,6 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
   }
 
   Widget _buildPortraitLayout(String currentExercise, int targetReps) {
-    // Show Feedback Overlay if needed
-    final feedback = _repCounter.feedback;
-
     return Stack(
       children: [
         Column(
@@ -728,33 +747,127 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
             else
               Expanded(child: _buildPermissionRequest()),
 
-            WorkoutStatsPanel(
-              exerciseName: currentExercise,
-              reps: _reps,
-              targetReps: targetReps,
-              accuracy: _repCounter.accuracy,
-              isProperForm: _repCounter.isProperForm,
-              secondsRemaining: _secondsRemaining,
-              isPortrait: true,
-              onSkip: _skipExercise,
+            ValueListenableBuilder<int>(
+              valueListenable: _repNotifier,
+              builder: (context, reps, _) {
+                return ValueListenableBuilder<double>(
+                  valueListenable: _accuracyNotifier,
+                  builder: (context, accuracy, _) {
+                    return ValueListenableBuilder<bool>(
+                      valueListenable: _isProperFormNotifier,
+                      builder: (context, isProperForm, _) {
+                        return WorkoutStatsPanel(
+                          exerciseName: currentExercise,
+                          reps: reps,
+                          targetReps: targetReps,
+                          accuracy: accuracy,
+                          isProperForm: isProperForm,
+                          secondsRemaining: _secondsRemaining,
+                          isPortrait: true,
+                          onSkip: _skipExercise,
+                        );
+                      },
+                    );
+                  },
+                );
+              },
             ),
           ],
         ),
 
         // Floating Feedback Pill (Overlay on Camera)
-        if (feedback.isNotEmpty)
-          Positioned(
-            top: 40,
-            left: 0,
-            right: 0,
-            child: Center(
+        ValueListenableBuilder<String>(
+          valueListenable: _feedbackNotifier,
+          builder: (context, feedback, _) {
+            if (feedback.isEmpty) return const SizedBox.shrink();
+            return Positioned(
+              top: 40,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: feedback.contains("Fix") || feedback == "GO LOWER"
+                        ? Colors.redAccent.withOpacity(0.8)
+                        : Colors.blueAccent.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    feedback,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLandscapeLayout(String currentExercise, int targetReps) {
+    return Stack(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _permissionGranted
+                  ? _buildCameraArea(currentExercise)
+                  : _buildPermissionRequest(),
+            ),
+            ValueListenableBuilder<int>(
+              valueListenable: _repNotifier,
+              builder: (context, reps, _) {
+                return ValueListenableBuilder<double>(
+                  valueListenable: _accuracyNotifier,
+                  builder: (context, accuracy, _) {
+                    return ValueListenableBuilder<bool>(
+                      valueListenable: _isProperFormNotifier,
+                      builder: (context, isProperForm, _) {
+                        return WorkoutStatsPanel(
+                          exerciseName: currentExercise,
+                          reps: reps,
+                          targetReps: targetReps,
+                          accuracy: accuracy,
+                          isProperForm: isProperForm,
+                          secondsRemaining: _secondsRemaining,
+                          isPortrait: false,
+                          onSwitchCamera: _switchCamera,
+                          onReset: _resetCounter,
+                          onSkip: _skipExercise,
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+
+        // Feedback Overlay
+        ValueListenableBuilder<String>(
+          valueListenable: _feedbackNotifier,
+          builder: (context, feedback, _) {
+            if (feedback.isEmpty) return const SizedBox.shrink();
+            return Positioned(
+              top: 20,
+              left: 20,
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: feedback.contains("Fix") || feedback == "GO LOWER"
+                  color: feedback.contains("Fix")
                       ? Colors.redAccent.withOpacity(0.8)
                       : Colors.blueAccent.withOpacity(0.8),
                   borderRadius: BorderRadius.circular(20),
@@ -768,62 +881,9 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
                   ),
                 ),
               ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildLandscapeLayout(String currentExercise, int targetReps) {
-    final feedback = _repCounter.feedback;
-
-    return Stack(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _permissionGranted
-                  ? _buildCameraArea(currentExercise)
-                  : _buildPermissionRequest(),
-            ),
-            WorkoutStatsPanel(
-              exerciseName: currentExercise,
-              reps: _reps,
-              targetReps: targetReps,
-              accuracy: _repCounter.accuracy,
-              isProperForm: _repCounter.isProperForm,
-              secondsRemaining: _secondsRemaining,
-              isPortrait: false,
-              onSwitchCamera: _switchCamera,
-              onReset: _resetCounter,
-              onSkip: _skipExercise,
-            ),
-          ],
+            );
+          },
         ),
-
-        // Feedback Overlay
-        if (feedback.isNotEmpty)
-          Positioned(
-            top: 20,
-            left: 20,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: feedback.contains("Fix")
-                    ? Colors.redAccent.withOpacity(0.8)
-                    : Colors.blueAccent.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                feedback,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -853,33 +913,17 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
                 turns = 1;
               }
 
-              return StreamBuilder<List<Map<String, double>>>(
-                stream: _bridge.poseStream,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: Colors.greenAccent,
-                      ),
-                    );
-                  }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty)
-                    return const SizedBox();
-
-                  // Process landmarks
-                  if (_plan.isNotEmpty ||
-                      _defaultExercises.contains(currentExercise)) {
-                    _repCounter.processLandmarks(
-                      snapshot.data!,
-                      currentExercise,
-                    );
-                    _handleTtsAndLogic(); // Extracted logic
-                  }
+              return ValueListenableBuilder<List<Map<String, double>>>(
+                valueListenable: _skeletonNotifier,
+                builder: (context, landmarks, _) {
+                  if (landmarks.isEmpty) return const SizedBox();
 
                   return RotatedBox(
                     quarterTurns: turns,
                     child: CustomPaint(
-                      painter: SkeletonPainter(snapshot.data!),
+                      painter: SettingsService().showSkeleton
+                          ? SkeletonPainter(landmarks)
+                          : null,
                     ),
                   );
                 },
@@ -905,49 +949,72 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
 
   // Extracted TTS and State updating logic to keep build clean
   void _handleTtsAndLogic() {
-    // TTS
-    if (_repCounter.feedback.isNotEmpty) {
-      final msg = _repCounter.feedback;
-      bool isPostureFix = ![
-        "UP",
-        "DOWN",
-        "GO LOWER",
-        "HOLD",
-        "STAND",
-        "LIFT",
-        "LOWER",
-        "EXTEND",
-        "KEEP GOING",
-      ].contains(msg);
-      if (isPostureFix) {
-        bool isWarning = msg.contains("Unclear");
-        TtsService().speakFeedback(
-          msg,
-          key: msg,
-          debounceDuration: isWarning
-              ? const Duration(seconds: 10)
-              : const Duration(seconds: 4),
-        );
+    // 1. Feedback Update
+    if (_feedbackNotifier.value != _repCounter.feedback) {
+      _feedbackNotifier.value = _repCounter.feedback;
+
+      if (_feedbackNotifier.value.isNotEmpty) {
+        final msg = _feedbackNotifier.value;
+        bool isPostureFix = ![
+          "UP",
+          "DOWN",
+          "GO LOWER",
+          "HOLD",
+          "STAND",
+          "LIFT",
+          "LOWER",
+          "EXTEND",
+          "KEEP GOING",
+        ].contains(msg);
+
+        if (isPostureFix) {
+          bool isWarning = msg.contains("Unclear");
+          TtsService().speakFeedback(
+            msg,
+            key: msg,
+            debounceDuration: isWarning
+                ? const Duration(seconds: 10)
+                : const Duration(seconds: 4),
+          );
+        }
       }
     }
 
-    // State Update
-    if (_reps != _repCounter.count) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          if (_repCounter.count > _reps) {
-            TtsService().speakCount(_repCounter.count);
+    // 2. Accuracy & Form Update
+    if (_accuracyNotifier.value != _repCounter.accuracy) {
+      _accuracyNotifier.value = _repCounter.accuracy;
+    }
+    if (_isProperFormNotifier.value != _repCounter.isProperForm) {
+      _isProperFormNotifier.value = _repCounter.isProperForm;
+    }
+
+    // 3. Rep Count Update (State relevant for transition)
+    if (_repNotifier.value != _repCounter.count) {
+      _repNotifier.value = _repCounter.count;
+
+      // We still need to update _reps for logic that depends on it (like _handleGoalMet)
+      // but we do it without a full setState if possible.
+      // Actually, many things use _reps. Setting it via setState might still be needed
+      // for the transition logic, BUT we can reduce frequency.
+
+      if (_repNotifier.value > _reps) {
+        TtsService().speakCount(_repNotifier.value);
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _reps = _repNotifier.value;
+              if (!_hasStartedTimer) {
+                _hasStartedTimer = true;
+                _startTimer();
+              }
+              if (_reps >= _targetReps && !_isTransitioning) {
+                _handleGoalMet();
+              }
+            });
           }
-          setState(() => _reps = _repCounter.count);
-          if (_reps > 0 && !_hasStartedTimer) {
-            _hasStartedTimer = true;
-            _startTimer();
-          }
-          if (_reps >= _targetReps && !_isTransitioning) {
-            _handleGoalMet();
-          }
-        }
-      });
+        });
+      }
     }
   }
 

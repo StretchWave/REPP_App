@@ -3,7 +3,6 @@ import 'package:ai_fitness_tracker/screens/pose_demo.dart';
 import 'package:ai_fitness_tracker/services/workout_service.dart';
 import 'package:ai_fitness_tracker/services/level_progression_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:ai_fitness_tracker/services/workout_log_service.dart';
 
 class WorkoutScreen extends StatefulWidget {
   const WorkoutScreen({super.key});
@@ -18,6 +17,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   List<Map<String, dynamic>> _workouts = [];
   int _retryCount = 0;
   bool _isError = false;
+
+  bool _canFocusUpperBody = true; // Default to true
+  bool _canFocusLowerBody = true; // Default to true
+  String _goalIntensity = 'Moderate';
+  bool _isRestDay = false;
 
   @override
   void initState() {
@@ -40,12 +44,31 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             .eq('id', userId)
             .single();
         powerLevel = data['power_level'] ?? 1;
+
+        // Fetch Physical Limitations
+        final profileData = await Supabase.instance.client
+            .from('profiles')
+            .select(
+              'can_focus_upper_body, can_focus_lower_body, workout_frequency, goal_intensity',
+            )
+            .eq('id', userId)
+            .single();
+
+        _canFocusUpperBody = profileData['can_focus_upper_body'] ?? true;
+        _canFocusLowerBody = profileData['can_focus_lower_body'] ?? true;
+        _goalIntensity = profileData['goal_intensity'] ?? 'Moderate';
+        final freq = profileData['workout_frequency'] ?? 3;
+        _isRestDay = !_isTodayWorkoutDay(freq);
       }
     } catch (e) {
       debugPrint("Error loading power level: $e");
     }
 
     if (mounted) {
+      if (_isRestDay) {
+        setState(() {}); // Just rebuild to show rest day message
+        return;
+      }
       setState(() {
         _progress = progress;
         _powerLevel = powerLevel;
@@ -78,30 +101,55 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   void _generateWorkout() {
     // 1. Get Generated Routine from Service
-    final items = LevelProgressionService().getWorkoutForLevel(_powerLevel);
+    final items = LevelProgressionService().getWorkoutForLevel(
+      _powerLevel,
+      canFocusUpperBody: _canFocusUpperBody,
+      canFocusLowerBody: _canFocusLowerBody,
+    );
 
     // 2. Map to UI format
     _workouts = items.map((item) {
       final meta = _getExerciseMetadata(item.exercise.id);
 
-      // Format Sets/Reps string
-      // Format Sets/Reps string
-      String setsText = "3 sets × ${item.targetValue} ${item.unit}";
+      // Difficulty Multiplier
+      double multiplier = 1.0;
+      if (_goalIntensity == 'Light') {
+        multiplier = 0.5; // 50% difficulty
+      } else if (_goalIntensity == 'Moderate') {
+        multiplier = 0.75; // 75% difficulty
+      }
+      // Intense stays 1.0
 
-      dynamic finalTargetValue = item.targetValue;
+      // Apply multiplier
+      int adjustedTarget = (item.targetValue * multiplier).round();
+      if (adjustedTarget < 1) adjustedTarget = 1; // Minimum 1 rep
+
+      // Format Sets/Reps string
+      String setsText = "3 sets × $adjustedTarget ${item.unit}";
+
+      dynamic finalTargetValue = adjustedTarget;
       String finalUnit = item.unit;
 
       if (item.exercise.name == 'Jogging') {
         // Convert seconds to steps (approx 1.5 steps/sec)
-        int steps = (item.targetValue * 1.5).round();
+        // Jogging might trigger on time or steps.
+        // If we scale time, steps scale automatically.
+        int steps = (adjustedTarget * 1.5).round();
         setsText = "$steps steps";
         finalTargetValue = steps;
         finalUnit = 'steps';
       } else if (item.exercise.type == ExerciseType.duration) {
         // Convert seconds to minutes for clean display if needed
         if (item.unit == 'seconds') {
-          int mins = (item.targetValue / 60).round();
-          setsText = "$mins minutes";
+          // If duration is scaled, it might be weird (e.g. 45 seconds).
+          // Let's keep seconds unless it's > 60
+          if (adjustedTarget >= 60) {
+            int mins = (adjustedTarget / 60).round();
+            // Append 'min' or 'mins'
+            setsText = "$mins min${mins > 1 ? 's' : ''}";
+          } else {
+            setsText = "$adjustedTarget sec";
+          }
         }
       }
 
@@ -114,7 +162,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         'time': meta['time'],
         'illustration_icon': meta['illustration_icon'],
         'color': meta['color'],
-        // Store raw targets if needed for camera
+        // Store adjusted targets for camera
         'targetValue': finalTargetValue,
         'unit': finalUnit,
       };
@@ -126,6 +174,33 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       if (b['title'] == 'Jogging') return -1;
       return 0;
     });
+  }
+
+  bool _isTodayWorkoutDay(int freq) {
+    // 1 = Mon, 7 = Sun
+    final weekday = DateTime.now().weekday;
+
+    switch (freq) {
+      case 3:
+        // Mon(1), Wed(3), Fri(5)
+        return weekday == 1 || weekday == 3 || weekday == 5;
+      case 4:
+        // Mon(1), Tue(2), Thu(4), Fri(5)
+        return weekday == 1 || weekday == 2 || weekday == 4 || weekday == 5;
+      case 5:
+        // Mon(1), Tue(2), Wed(3), Fri(5), Sat(6)
+        return weekday == 1 ||
+            weekday == 2 ||
+            weekday == 3 ||
+            weekday == 5 ||
+            weekday == 6;
+      case 6:
+        // Mon(1) -> Sat(6)
+        return weekday != 7;
+      default:
+        // Fallback
+        return weekday == 1 || weekday == 3 || weekday == 5;
+    }
   }
 
   Map<String, dynamic> _getExerciseMetadata(String id) {
@@ -170,7 +245,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           'cal': '35 cal',
           'time': '5 min',
         };
-      case 'bird_dogs': // Note: Service uses 'bird_dogs', UI used 'Bird Dog'
+      case 'bird_dogs':
         return {
           'icon': '🐕',
           'illustration_icon': Icons.accessibility_new,
@@ -229,7 +304,52 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         children: [
           _buildDarkHeader(context),
           Expanded(
-            child: _isError
+            child: _isRestDay
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.spa_outlined,
+                            size: 64,
+                            color: Colors.teal,
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            "Rest Day",
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E2126),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            "This is a rest day per your workout frequency plan. Recovery is essential for muscle growth!",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.black54,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            "If you want to workout more, change the workout frequency in the profile settings.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black45,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : _isError
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -348,34 +468,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.bug_report,
-                      color: Colors.amberAccent,
-                    ),
-                    onPressed: _showDebugMenu,
-                    tooltip: "Debug Menu",
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.delete_forever,
-                      color: Colors.redAccent,
-                    ),
-                    onPressed: () async {
-                      await WorkoutService().clearTodayProgress();
-                      _loadData();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Dev: Progress Reset")),
-                        );
-                      }
-                    },
-                    tooltip: "Dev: Reset Progress",
-                  ),
-                ],
-              ),
+              const SizedBox.shrink(),
             ],
           ),
           const SizedBox(height: 5),
@@ -492,12 +585,15 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                           style: const TextStyle(fontSize: 20),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          workout['title'],
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E2126),
+                        Expanded(
+                          child: Text(
+                            workout['title'],
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1E2126),
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (isCompleted) ...[
@@ -511,17 +607,17 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         _buildStatBadge(Icons.bar_chart, workout['sets']),
-                        const SizedBox(width: 12),
                         _buildStatBadge(
                           Icons.local_fire_department,
                           workout['cal'],
                           color: Colors.orange,
                         ),
-                        const SizedBox(width: 12),
                         _buildStatBadge(
                           Icons.timer_outlined,
                           workout['time'],
@@ -557,6 +653,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     if (icon == Icons.bar_chart) iconColor = Colors.blueGrey;
 
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 16, color: iconColor),
         const SizedBox(width: 4),
@@ -602,167 +699,5 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         ],
       ),
     );
-  }
-
-  void _showDebugMenu() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1E2126),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Debug Controls",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: const Icon(
-                  Icons.check_circle_outline,
-                  color: Colors.greenAccent,
-                ),
-                title: const Text(
-                  "Complete Today's Workout",
-                  style: TextStyle(color: Colors.white),
-                ),
-                subtitle: const Text(
-                  "Marks all exercises as done & logs to DB",
-                  style: TextStyle(color: Colors.grey),
-                ),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _debugCompleteAll();
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.calendar_today,
-                  color: Colors.blueAccent,
-                ),
-                title: const Text(
-                  "Go to Next Day",
-                  style: TextStyle(color: Colors.white),
-                ),
-                subtitle: const Text(
-                  "Simulates tomorrow date for testing streaks",
-                  style: TextStyle(color: Colors.grey),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _debugNextDay();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.restore, color: Colors.orangeAccent),
-                title: const Text(
-                  "Reset to Today",
-                  style: TextStyle(color: Colors.white),
-                ),
-                subtitle: const Text(
-                  "Resets debug date offset to zero",
-                  style: TextStyle(color: Colors.grey),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _debugResetDate();
-                },
-              ),
-              const SizedBox(height: 10),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _debugCompleteAll() async {
-    final timestamp = WorkoutService().now; // Use debug date
-
-    for (var w in _workouts) {
-      final name = w['lookupName'];
-      if (_progress[name]?['isCompleted'] == true) continue;
-
-      // 1. Save to SharedPrefs (UI Checkmarks)
-      await WorkoutService().saveExerciseProgress(
-        exerciseName: name,
-        isCompleted: true,
-        durationSeconds: 300,
-        progressValue: 100,
-        feedback: "Debug Auto-Complete",
-      );
-
-      // 2. Log to Supabase (Analytics)
-      // Extract numeric stats from metadata or defaults
-      // e.g., 'cal': '30 cal' -> 30.0
-      double calories = 50.0;
-      try {
-        final calStr = (w['cal'] as String).split(' ').first;
-        calories = double.tryParse(calStr) ?? 50.0;
-      } catch (_) {}
-
-      await WorkoutLogService().logWorkout(
-        exerciseName: name,
-        repsCompleted: 10,
-        durationSeconds: 300,
-        isCompleted: true,
-        caloriesOverride: calories,
-        timestamp: timestamp,
-      );
-    }
-
-    _loadData();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Debug: All workouts completed for ${timestamp.toLocal().toString().split(' ')[0]}",
-          ),
-        ),
-      );
-    }
-  }
-
-  void _debugNextDay() {
-    WorkoutService().debugAdvanceDay();
-    // No need to clear progress explicitly unless we want to ensure empty state,
-    // but _getTodayKey() will now return a new key which is naturally empty.
-    _loadData();
-
-    if (mounted) {
-      final newDate = WorkoutService().now;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Debug: Advanced to ${newDate.toLocal().toString().split(' ')[0]}",
-          ),
-        ),
-      );
-    }
-  }
-
-  void _debugResetDate() {
-    WorkoutService().debugResetToToday();
-    _loadData();
-
-    if (mounted) {
-      final newDate = WorkoutService().now;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Debug: Date reset to ${newDate.toLocal().toString().split(' ')[0]}",
-          ),
-        ),
-      );
-    }
   }
 }

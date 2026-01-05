@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:ai_fitness_tracker/services/settings_service.dart';
 import 'package:ai_fitness_tracker/logic/difficulty_scaler.dart';
 import 'package:ai_fitness_tracker/logic/pose_bridge.dart';
 import 'package:ai_fitness_tracker/logic/rep_counter.dart';
@@ -45,10 +46,48 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   int _powerLevel = 0;
   bool _isSaving = false;
 
+  late ValueNotifier<int> _repNotifier;
+  late ValueNotifier<List<Map<String, double>>> _skeletonNotifier;
+  StreamSubscription? _poseSubscription;
+
   @override
   void initState() {
     super.initState();
+    _repNotifier = ValueNotifier<int>(0);
+    _skeletonNotifier = ValueNotifier<List<Map<String, double>>>([]);
     _checkPermission();
+    _startPoseStream();
+  }
+
+  void _startPoseStream() {
+    _poseSubscription?.cancel();
+    _poseSubscription = _bridge.poseStream.listen((landmarks) {
+      if (!mounted) return;
+
+      // 1. Update Skeleton
+      _skeletonNotifier.value = landmarks;
+
+      // 2. Process Reps (only if exercise active)
+      if (_isExerciseActive) {
+        String exercise = "";
+        if (_currentStep == 1) exercise = "Pushups";
+        if (_currentStep == 3) exercise = "Squats";
+        if (_currentStep == 5) exercise = "Situps";
+
+        if (exercise.isNotEmpty) {
+          _repCounter.processLandmarks(landmarks, exercise);
+
+          if (_repCounter.count > _repNotifier.value) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _repNotifier.value = _repCounter.count;
+                _onRepDetected(_repCounter.count);
+              }
+            });
+          }
+        }
+      }
+    });
   }
 
   Future<void> _checkPermission() async {
@@ -62,6 +101,9 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
 
   @override
   void dispose() {
+    _poseSubscription?.cancel();
+    _repNotifier.dispose();
+    _skeletonNotifier.dispose();
     _timer?.cancel();
     super.dispose();
   }
@@ -94,6 +136,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     // Reset for next
     _repCounter.reset();
     _currentReps = 0;
+    _repNotifier.value = 0; // Reset rep notifier
     _timeLeft = 60; // Reset time for next, or break time
 
     // Move to next step
@@ -139,13 +182,11 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId != null) {
-        final fullProfileData = {
-          ...widget.userData,
-          'id': userId,
-          'power_level': _powerLevel,
-        };
-
-        await Supabase.instance.client.from('profiles').upsert(fullProfileData);
+        // Just update the power level, profile already exists
+        await Supabase.instance.client
+            .from('profiles')
+            .update({'power_level': _powerLevel})
+            .eq('id', userId);
       }
     } catch (e) {
       debugPrint("Error saving power level: $e");
@@ -168,17 +209,14 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       _startTimer();
     }
 
-    if (mounted) {
-      setState(() {
-        _currentReps = reps;
-      });
-    }
+    // _currentReps is still used for saving the final count, but _repNotifier drives the UI
+    _currentReps = reps;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF343A40),
       body: SafeArea(
         child: Column(
           children: [
@@ -200,35 +238,56 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     if (_currentStep == 5) title = "Sit-ups Test";
     if (_currentStep == 6) title = "Results";
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      child: Column(
         children: [
-          if (_currentStep < 6)
-            Text(
-              "Time: ${_timeLeft}s",
-              style: TextStyle(
-                color: _timeLeft < 10 ? Colors.redAccent : Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Time: ${_timeLeft}s',
+                style: const TextStyle(color: Colors.white, fontSize: 16),
               ),
-            ),
-
-          Text(
-            title,
-            style: const TextStyle(color: Colors.white, fontSize: 18),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Row(
+                children: [
+                  ValueListenableBuilder<int>(
+                    valueListenable: _repNotifier,
+                    builder: (context, reps, child) {
+                      return Text(
+                        'Reps: $reps',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 16,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      value: _timeLeft / 60.0, // Approximate progress
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Colors.blue,
+                      ),
+                      strokeWidth: 3,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-
-          if (_currentStep < 6)
-            Text(
-              "Reps: $_currentReps",
-              style: const TextStyle(
-                color: Colors.greenAccent,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
         ],
       ),
     );
@@ -266,30 +325,69 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
 
   Widget _buildIntro() {
     return Padding(
-      padding: const EdgeInsets.all(30),
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.fitness_center, color: Colors.amber, size: 80),
-          const SizedBox(height: 30),
-          const Text(
-            "Strength Calibration",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
+          const Spacer(),
+          // Content
+          Column(
+            children: [
+              // Icon/Emoji Placeholder
+              const Text('🏋️', style: TextStyle(fontSize: 64)),
+              const SizedBox(height: 32),
+
+              // Title
+              const Text(
+                'Strength Calibration',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+
+              // Subtitle
+              Text(
+                'We will measure your fitness level with 3 quick tests:',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 40),
+
+              // List
+              const _TestItem(text: '1. Push-ups (60s)'),
+              const SizedBox(height: 16),
+              const _TestItem(text: '2. Squats (60s)'),
+              const SizedBox(height: 16),
+              const _TestItem(text: '3. Sit-ups (60s)'),
+
+              const SizedBox(height: 48),
+
+              // Instruction
+              Text(
+                'Do as many repetitions as you can with good form.',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          const Text(
-            "We will measure your fitness level with 3 quick tests:\n\n1. Push-ups (60s)\n2. Squats (60s)\n3. Sit-ups (60s)\n\nDo as many repetitions as you can with good form.",
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70, fontSize: 16, height: 1.5),
-          ),
-          const SizedBox(height: 50),
+
+          const Spacer(),
+
+          // Buttons
           ElevatedButton(
             onPressed: () {
               _checkPermission().then((_) {
+                if (!context.mounted) return;
                 if (_permissionGranted) {
                   setState(() {
                     _currentStep = 1; // Start Pushups
@@ -306,18 +404,41 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
               });
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              backgroundColor: Colors.white.withOpacity(
+                0.2,
+              ), // Light gray/translucent
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+              elevation: 0,
             ),
             child: const Text(
-              "Start Calibration",
+              'Start Calibration',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+                (route) => false,
+              );
+            },
+            child: Text(
+              'Skip for Now',
               style: TextStyle(
-                color: Colors.black,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 16,
+                decoration: TextDecoration.underline,
+                decorationColor: Colors.white.withOpacity(0.6),
               ),
             ),
           ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -326,111 +447,117 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   Widget _buildBreak() {
     String nextEx = _currentStep == 2 ? "Squats" : "Sit-ups";
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text(
-            "Take a Breath",
-            style: TextStyle(color: Colors.white, fontSize: 24),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            "$_timeLeft",
-            style: const TextStyle(
-              color: Colors.amber,
-              fontSize: 80,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            "Next: $nextEx",
-            style: const TextStyle(color: Colors.white70, fontSize: 18),
-          ),
-          const SizedBox(height: 40),
-          OutlinedButton(
-            onPressed: () {
-              _timer?.cancel();
-              setState(() {
-                _currentStep++;
-                _timeLeft = 60;
-                _isExerciseActive = true;
-              });
-            },
-            child: const Text("Skip Break"),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildResults() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
+      child: SingleChildScrollView(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              "Calibration Complete!",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              "Take a Breath",
+              style: TextStyle(color: Colors.white, fontSize: 24),
             ),
-            const SizedBox(height: 40),
-            _buildStatRow("Push-ups", _pushupsCount),
-            const SizedBox(height: 10),
-            _buildStatRow("Squats", _squatsCount),
-            const SizedBox(height: 10),
-            _buildStatRow("Sit-ups", _situpsCount),
-
-            const SizedBox(height: 40),
-
-            const Text(
-              "Your Power Level",
-              style: TextStyle(color: Colors.white70, fontSize: 16),
-            ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 20),
             Text(
-              "$_powerLevel",
+              "$_timeLeft",
               style: const TextStyle(
                 color: Colors.amber,
                 fontSize: 80,
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 20),
+            Text(
+              "Next: $nextEx",
+              style: const TextStyle(color: Colors.white70, fontSize: 18),
+            ),
+            const SizedBox(height: 40),
+            OutlinedButton(
+              onPressed: () {
+                _timer?.cancel();
+                setState(() {
+                  _currentStep++;
+                  _timeLeft = 60;
+                  _isExerciseActive = true;
+                });
+              },
+              child: const Text("Skip Break"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-            const SizedBox(height: 50),
-
-            if (_isSaving)
-              const CircularProgressIndicator()
-            else
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (context) => const HomeScreen()),
-                    (route) => false,
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 15,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child: const Text(
-                  "Go Home",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  Widget _buildResults() {
+    return Center(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                "Calibration Complete!",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-          ],
+              const SizedBox(height: 40),
+              _buildStatRow("Push-ups", _pushupsCount),
+              const SizedBox(height: 10),
+              _buildStatRow("Squats", _squatsCount),
+              const SizedBox(height: 10),
+              _buildStatRow("Sit-ups", _situpsCount),
+
+              const SizedBox(height: 40),
+
+              const Text(
+                "Your Power Level",
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "$_powerLevel",
+                style: const TextStyle(
+                  color: Colors.amber,
+                  fontSize: 80,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 50),
+
+              if (_isSaving)
+                const CircularProgressIndicator()
+              else
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HomeScreen(),
+                      ),
+                      (route) => false,
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 15,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: const Text(
+                    "Go Home",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -472,27 +599,16 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
 
         // Skeleton Layer
         Positioned.fill(
-          child: StreamBuilder<List<Map<String, double>>>(
-            stream: _bridge.poseStream,
-            builder: (context, snapshot) {
-              if (!snapshot.hasData || snapshot.data!.isEmpty)
-                return const SizedBox();
+          child: ValueListenableBuilder<List<Map<String, double>>>(
+            valueListenable: _skeletonNotifier,
+            builder: (context, landmarks, _) {
+              if (landmarks.isEmpty) return const SizedBox.shrink();
 
-              // Process Logic
-              _repCounter.processLandmarks(snapshot.data!, exercise);
-
-              // Verify Reps
-              if (_isExerciseActive) {
-                // Only update if rep count increased
-                if (_repCounter.count > _currentReps) {
-                  // Schedule update to avoid build conflict
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _onRepDetected(_repCounter.count);
-                  });
-                }
-              }
-
-              return CustomPaint(painter: SkeletonPainter(snapshot.data!));
+              return CustomPaint(
+                painter: SettingsService().showSkeleton
+                    ? SkeletonPainter(landmarks)
+                    : null,
+              );
             },
           ),
         ),
@@ -532,6 +648,21 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _TestItem extends StatelessWidget {
+  final String text;
+
+  const _TestItem({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(color: Colors.white, fontSize: 18),
+      textAlign: TextAlign.center,
     );
   }
 }

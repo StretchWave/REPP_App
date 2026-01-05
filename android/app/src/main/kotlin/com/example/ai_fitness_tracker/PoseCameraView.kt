@@ -19,6 +19,7 @@ import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
+import com.google.mediapipe.tasks.vision.core.ImageProcessingOptions
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.platform.PlatformView
 import java.util.concurrent.Executors
@@ -133,9 +134,6 @@ class PoseCameraView(
 
         val frameTime = System.currentTimeMillis()
         
-        // Optimization: Use the lower resolution bitmap directly & Reuse Buffer
-        // Rotate bitmap
-        
         if (bitmapBuffer == null || bitmapBuffer?.width != imageProxy.width || bitmapBuffer?.height != imageProxy.height) {
             bitmapBuffer = Bitmap.createBitmap(
                 imageProxy.width,
@@ -146,20 +144,14 @@ class PoseCameraView(
         
         bitmapBuffer?.copyPixelsFromBuffer(imageProxy.planes[0].buffer)
         
-        val matrix = Matrix()
-        matrix.postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
-        
-        // We still need a new bitmap for rotation unfortunately unless we handle rotation in MediaPipe options
-        // or use a different Image object type. For now, let's keep the rotation bitmap as is but we saved one allocation above.
-        // Actually, we can try to improve this further later.
-        
-        val rotatedBitmap = Bitmap.createBitmap(
-            bitmapBuffer!!, 0, 0, bitmapBuffer!!.width, bitmapBuffer!!.height, matrix, true
-        )
+        val mpImage = BitmapImageBuilder(bitmapBuffer!!).build()
 
-        val mpImage = BitmapImageBuilder(rotatedBitmap).build()
+        // Handle rotation via Options instead of creating a new Bitmap
+        val options = ImageProcessingOptions.builder()
+            .setRotationDegrees(imageProxy.imageInfo.rotationDegrees)
+            .build()
 
-        landmarker.detectAsync(mpImage, frameTime)
+        landmarker.detectAsync(mpImage, options, frameTime)
         
         imageProxy.close()
     }

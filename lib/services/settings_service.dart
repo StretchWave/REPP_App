@@ -23,6 +23,7 @@ class SettingsService {
   static const String _keyAiRecommendations = 'ai_recommendations';
   static const String _keyRestTimer = 'rest_timer';
   static const String _keyIsMetric = 'is_metric';
+  static const String _keyShowSkeleton = 'show_skeleton';
 
   // Getters
   bool get pushNotifications => _prefs?.getBool(_keyPushNotifications) ?? true;
@@ -37,6 +38,7 @@ class SettingsService {
   bool get aiRecommendations => _prefs?.getBool(_keyAiRecommendations) ?? true;
   int get restTimerSeconds => _prefs?.getInt(_keyRestTimer) ?? 60;
   bool get isMetric => _prefs?.getBool(_keyIsMetric) ?? true;
+  bool get showSkeleton => _prefs?.getBool(_keyShowSkeleton) ?? true;
 
   // Setters
   Future<void> setPushNotifications(bool val) async =>
@@ -61,4 +63,6 @@ class SettingsService {
       await _prefs?.setInt(_keyRestTimer, val);
   Future<void> setIsMetric(bool val) async =>
       await _prefs?.setBool(_keyIsMetric, val);
+  Future<void> setShowSkeleton(bool val) async =>
+      await _prefs?.setBool(_keyShowSkeleton, val);
 }

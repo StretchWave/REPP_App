@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class GlassTextField extends StatelessWidget {
+class GlassTextField extends StatefulWidget {
   final String hint;
   final IconData icon;
   final bool isPassword;
@@ -17,6 +17,19 @@ class GlassTextField extends StatelessWidget {
   });
 
   @override
+  State<GlassTextField> createState() => _GlassTextFieldState();
+}
+
+class _GlassTextFieldState extends State<GlassTextField> {
+  late bool _obscureText;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.isPassword;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
@@ -26,18 +39,36 @@ class GlassTextField extends StatelessWidget {
         border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
       ),
       child: TextField(
-        controller: controller,
-        obscureText: isPassword,
-        keyboardType: keyboardType,
+        controller: widget.controller,
+        obscureText: _obscureText,
+        keyboardType: widget.keyboardType,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           border: InputBorder.none,
-          hintText: hint,
+          hintText: widget.hint,
           hintStyle: TextStyle(
             color: Colors.white.withOpacity(0.5),
             fontSize: 14,
           ),
-          icon: Icon(icon, color: Colors.white.withOpacity(0.7), size: 20),
+          icon: Icon(
+            widget.icon,
+            color: Colors.white.withOpacity(0.7),
+            size: 20,
+          ),
+          suffixIcon: widget.isPassword
+              ? IconButton(
+                  icon: Icon(
+                    _obscureText ? Icons.visibility_off : Icons.visibility,
+                    color: Colors.white.withOpacity(0.7),
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscureText = !_obscureText;
+                    });
+                  },
+                )
+              : null,
         ),
       ),
     );

@@ -183,7 +183,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     final lifestyle = _getLifestyleTips();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1F25), // Dark background
+      backgroundColor: Colors.white, // White background
       body: SafeArea(
         child: Column(
           children: [
@@ -200,7 +200,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                     child: IconButton(
                       icon: const Icon(
                         Icons.arrow_back_ios_new,
-                        color: Colors.white,
+                        color: Colors.black,
                         size: 20,
                       ),
                       onPressed: () => Navigator.pop(context),
@@ -213,7 +213,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                           width: 50,
                           height: 50,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2C313A),
+                            color: Colors.grey[200],
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
@@ -225,7 +225,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                         const Text(
                           "AI Recommendations",
                           style: TextStyle(
-                            color: Colors.white,
+                            color: Colors.black,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),
@@ -327,7 +327,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         Text(
           title,
           style: const TextStyle(
-            color: Colors.white,
+            color: Colors.black87,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -402,10 +402,10 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.grey.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: borderColor ?? Colors.white.withOpacity(0.1),
+          color: borderColor ?? Colors.grey.withOpacity(0.2),
           width: 1,
         ),
       ),
@@ -422,7 +422,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
           Text(
             data['title'],
             style: const TextStyle(
-              color: Colors.white,
+              color: Colors.black87,
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -431,12 +431,12 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
           Text(
             data['summary'],
             style: const TextStyle(
-              color: Colors.grey,
+              color: Colors.black54,
               fontSize: 13,
               height: 1.4,
             ),
           ),
-          const Divider(color: Colors.white24, height: 20),
+          const Divider(color: Colors.black12, height: 20),
           _buildDetailRow("Split", data['split']),
           _buildDetailRow("Reps", data['reps']),
           _buildDetailRow("Rest", data['rest']),
@@ -461,7 +461,10 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                     ),
                     child: Text(
                       e,
-                      style: const TextStyle(color: Colors.white, fontSize: 11),
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
                 )
@@ -483,7 +486,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
             child: Text(
               label,
               style: const TextStyle(
-                color: Colors.white70,
+                color: Colors.black87,
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
               ),
@@ -492,7 +495,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              style: const TextStyle(color: Colors.black54, fontSize: 12),
             ),
           ),
         ],
@@ -512,7 +515,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
               Text(
                 data['title'],
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Colors.black87,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -537,7 +540,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
           Text(
             data['strategy'],
             style: const TextStyle(
-              color: Colors.grey,
+              color: Colors.black54,
               fontSize: 13,
               height: 1.4,
             ),
@@ -559,7 +562,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                     child: Text(
                       tip,
                       style: const TextStyle(
-                        color: Colors.white70,
+                        color: Colors.black87,
                         fontSize: 12,
                       ),
                     ),
@@ -584,15 +587,15 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.grey.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
+              border: Border.all(color: Colors.grey.withOpacity(0.2)),
             ),
             alignment: Alignment.center,
             child: Text(
               foods[index],
               style: const TextStyle(
-                color: Colors.white,
+                color: Colors.black87,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
@@ -612,7 +615,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.grey.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -634,7 +637,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                 Text(
                   title,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Colors.black87,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
@@ -642,7 +645,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                 const SizedBox(height: 4),
                 Text(
                   desc,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: const TextStyle(color: Colors.black54, fontSize: 12),
                 ),
               ],
             ),

@@ -50,13 +50,20 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
     final fullData = {...widget.previousData, ...goalData};
 
     try {
+      // Enforce non-null full name for metadata trigger
+      final String safeFullName =
+          (fullData['full_name'] as String?)?.trim() ?? 'User';
+      if (safeFullName.isEmpty) {
+        throw const AuthException('Full name is required');
+      }
+
       AuthResponse res;
       try {
         // 1. Try to Sign Up User
         res = await Supabase.instance.client.auth.signUp(
           email: fullData['email'],
           password: fullData['password'],
-          data: {'full_name': fullData['full_name']},
+          data: {'full_name': safeFullName},
         );
       } on AuthException catch (e) {
         if (e.message.contains('User already registered')) {
@@ -65,7 +72,32 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
             email: fullData['email'],
             password: fullData['password'],
           );
+        } else if (e.statusCode == '500' ||
+            e.message.toLowerCase().contains('database error')) {
+          // Fallback: If DB error (trigger failure), user might still be created.
+          // Try to sign in.
+          try {
+            debugPrint(
+              "Database Error encountered. Attempting fallback login...",
+            );
+            res = await Supabase.instance.client.auth.signInWithPassword(
+              email: fullData['email'],
+              password: fullData['password'],
+            );
+          } catch (loginError) {
+            // If fallback login also fails, it means the password doesn't match the existing account.
+            // We should inform the user that the email is taken.
+            throw const AuthException(
+              'Email is already registered. Please log in.',
+            );
+          }
         } else {
+          // Show error for other cases
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(e.message)));
+          }
           rethrow; // Rethrow other auth errors
         }
       }
@@ -73,9 +105,11 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
       final User? user = res.user;
 
       if (user != null) {
-        // Prepare Profile Data (Do NOT save yet, pass to Calibration)
+        // Prepare Profile Data
         final completeProfileData = {
+          'id': user.id, // Add ID explicitly
           'full_name': fullData['full_name'],
+          'email': fullData['email'],
           'phone_number': fullData['phone_number'],
           'age': int.tryParse(fullData['age'].toString()) ?? 0,
           'gender': fullData['gender'],
@@ -88,7 +122,13 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
           'goal_timeline': fullData['goal_timeline'],
           'workout_frequency': fullData['workout_frequency'],
           'goal_intensity': fullData['goal_intensity'],
+          'power_level': 0, // Default power level
         };
+
+        // SAVE IMMEDIATELY to prevent state corruption if app closes
+        await Supabase.instance.client
+            .from('profiles')
+            .upsert(completeProfileData);
 
         if (mounted) {
           // Navigate to Calibration Screen with Data
@@ -242,8 +282,9 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 _buildCounterButton(Icons.remove, () {
-                                  if (_workoutFrequency > 1)
+                                  if (_workoutFrequency > 3) {
                                     setState(() => _workoutFrequency--);
+                                  }
                                 }),
                                 SizedBox(
                                   width: 100,
@@ -258,8 +299,9 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
                                   ),
                                 ),
                                 _buildCounterButton(Icons.add, () {
-                                  if (_workoutFrequency < 7)
+                                  if (_workoutFrequency < 6) {
                                     setState(() => _workoutFrequency++);
+                                  }
                                 }),
                               ],
                             ),
