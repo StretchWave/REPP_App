@@ -273,6 +273,21 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                   ),
+                  const SizedBox(height: 16),
+                  _buildMenuOption(
+                    icon: Icons.event,
+                    title: 'Events',
+                    subtitle: 'Join community events',
+                    isLocked: true,
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("This feature is locked."),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 40), // Bottom padding
                 ],
               ),
@@ -402,6 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required String subtitle,
     required VoidCallback onTap,
     Color? color,
+    bool isLocked = false,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -453,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             Icon(
-              Icons.arrow_forward,
+              isLocked ? Icons.lock : Icons.arrow_forward,
               color: Colors.white.withOpacity(0.7),
               size: 20,
             ),
