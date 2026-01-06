@@ -46,6 +46,10 @@ class RepCounter {
         return PikePushUpLogic();
       case 'Chair Dips':
         return ChairDipLogic();
+      case 'Floor Dips':
+        return FloorDipLogic();
+      case 'Bird Dog':
+        return BirdDogLogic();
       case 'Leg Raises':
         return LegRaiseLogic();
       // Add others as needed

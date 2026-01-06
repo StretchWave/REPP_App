@@ -62,6 +62,9 @@ object MediaPipeManager {
             val optionsGpu = PoseLandmarker.PoseLandmarkerOptions.builder()
                 .setBaseOptions(baseOptionsGpu)
                 .setRunningMode(RunningMode.LIVE_STREAM)
+                .setMinPoseDetectionConfidence(0.7f)
+                .setMinPosePresenceConfidence(0.7f)
+                .setMinTrackingConfidence(0.7f)
                 .setResultListener { result, input ->
                     activeListener?.invoke(result, input)
                 }
@@ -87,6 +90,9 @@ object MediaPipeManager {
             val optionsCpu = PoseLandmarker.PoseLandmarkerOptions.builder()
                 .setBaseOptions(baseOptionsCpu)
                 .setRunningMode(RunningMode.LIVE_STREAM)
+                .setMinPoseDetectionConfidence(0.7f)
+                .setMinPosePresenceConfidence(0.7f)
+                .setMinTrackingConfidence(0.7f)
                 .setResultListener { result, input ->
                     activeListener?.invoke(result, input)
                 }

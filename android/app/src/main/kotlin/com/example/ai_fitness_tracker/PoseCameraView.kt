@@ -45,6 +45,9 @@ class PoseCameraView(
     
     // Optimization: Reuse Bitmap to avoid GC churn
     private var bitmapBuffer: Bitmap? = null
+    private var frameCounter = 0
+    private val TEXTURE_Width = 360
+    private val TEXTURE_HEIGHT = 480
 
     init {
         methodChannel.setMethodCallHandler(this)
@@ -102,7 +105,7 @@ class PoseCameraView(
 
             val imageAnalysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .setTargetResolution(android.util.Size(480, 640)) // Lower resolution for higher FPS
+                .setTargetResolution(android.util.Size(TEXTURE_Width, TEXTURE_HEIGHT)) // Lower resolution (360x480) for performance
                 .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                 .build()
 
@@ -131,6 +134,14 @@ class PoseCameraView(
             imageProxy.close()
             return
         }
+
+        // Optimization: Process every 2nd frame to reduce load (e.g. 30fps -> 15fps inference)
+        if (frameCounter % 2 != 0) {
+            imageProxy.close()
+            frameCounter++
+            return
+        }
+        frameCounter++
 
         val frameTime = System.currentTimeMillis()
         

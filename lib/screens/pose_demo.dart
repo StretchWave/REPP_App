@@ -19,8 +19,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PoseDemoScreen extends StatefulWidget {
   final List<Map<String, dynamic>>? workoutPlan;
+  final bool isCalibration;
 
-  const PoseDemoScreen({super.key, this.workoutPlan});
+  const PoseDemoScreen({
+    super.key,
+    this.workoutPlan,
+    this.isCalibration = false,
+  });
 
   @override
   State<PoseDemoScreen> createState() => _PoseDemoScreenState();
@@ -70,7 +75,11 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
   ];
 
   int _currentExerciseIndex = 0;
+
   DateTime? _exerciseStartTime;
+
+  // Calibration Results: Map<ExerciseName, RepsCount>
+  final Map<String, int> _calibrationResults = {};
 
   // Timer for Rep-based exercises
   Timer? _timer;
@@ -98,6 +107,8 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
     TtsService(); // Warm up TTS engine
     _checkPermission();
     _loadUserProfile();
+    if (!widget.isCalibration)
+      _loadInitialProgress(); // Skip loading progress for calibration
     _startPoseStream();
 
     // Initialize Workout Data
@@ -114,8 +125,9 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
     _updateOrientation();
     _exerciseStartTime = DateTime.now();
 
-    // Check for already completed exercises
-    _loadInitialProgress();
+    if (!widget.isCalibration) {
+      _loadInitialProgress();
+    }
   }
 
   void _startPoseStream() {
@@ -123,13 +135,29 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
     _poseSubscription = _bridge.poseStream.listen((landmarks) {
       if (!mounted) return;
 
-      // 1. Update Skeleton
-      _skeletonNotifier.value = landmarks;
+      // Stop processing if we are transitioning (e.g. Rest Timer, Saving)
+      if (_isTransitioning) return;
 
-      // 2. Process Landmarks
+      // 1. Normalize Landmarks (Rotate 90 CW to fix Sensor vs UI mismatch)
+      // Input: (x,y) relative to Sensor (Landscape native).
+      // Output: (x',y') relative to Portrait UI.
+      // 90 Deg CW: x' = 1 - y, y' = x
+      final List<Map<String, double>> normalized = landmarks.map((l) {
+        return {
+          'x': 1.0 - l['y']!,
+          'y': l['x']!,
+          'z': l['z']!,
+          'visibility': l['visibility']!,
+        };
+      }).toList();
+
+      // 2. Update Skeleton (Visuals)
+      _skeletonNotifier.value = normalized;
+
+      // 3. Process Landmarks (Logic)
       final currentExercise = _exercises[_currentExerciseIndex];
       if (_plan.isNotEmpty || _defaultExercises.contains(currentExercise)) {
-        _repCounter.processLandmarks(landmarks, currentExercise);
+        _repCounter.processLandmarks(normalized, currentExercise);
         _handleTtsAndLogic();
       }
     });
@@ -158,6 +186,14 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
   void _updateCurrentTargets() {
     _timer?.cancel();
     _hasStartedTimer = false;
+
+    if (widget.isCalibration) {
+      // Calibration Mode: 60s Timer, No Rep Limit
+      _targetReps = 9999;
+      _totalTimeLimit = 60;
+      _secondsRemaining = 60;
+      return;
+    }
 
     if (_plan.isNotEmpty && _currentExerciseIndex < _plan.length) {
       final item = _plan[_currentExerciseIndex];
@@ -206,14 +242,26 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
             // Timer expired
             timer.cancel();
             if (!_isTransitioning) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Time's Up! Exercise Incomplete."),
-                  backgroundColor: Colors.redAccent,
-                  duration: Duration(seconds: 2),
-                ),
-              );
-              _nextExercise(forceFailure: true);
+              if (widget.isCalibration) {
+                // In Calibration, Time Up = Success (Max Reps Done)
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Time's Up! Test Complete."),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+                _nextExercise(forceFailure: false);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Time's Up! Exercise Incomplete."),
+                    backgroundColor: Colors.redAccent,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+                _nextExercise(forceFailure: true);
+              }
             }
           }
         });
@@ -495,6 +543,11 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
         isGoalMet = _reps >= _targetReps;
       }
 
+      // Allow if Calibration (Timer end = Success)
+      if (widget.isCalibration) {
+        isGoalMet = true;
+      }
+
       if (!isGoalMet) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -521,38 +574,45 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
       feedbackMsg = "Fix: ${_repCounter.formIssues.join(', ')}";
     }
 
-    await WorkoutService().saveExerciseProgress(
-      exerciseName: _exercises[_currentExerciseIndex],
-      isCompleted: true, // Mark done for today
-      isSkipped: forceFailure, // Flag as skipped/failed
-      durationSeconds: duration,
-      feedback: feedbackMsg,
-    );
+    try {
+      await WorkoutService().saveExerciseProgress(
+        exerciseName: _exercises[_currentExerciseIndex],
+        isCompleted: true, // Mark done for today
+        isSkipped: forceFailure, // Flag as skipped/failed
+        durationSeconds: duration,
+        feedback: feedbackMsg,
+      );
 
-    // LOG CALORIES
-    double calories = 0;
-    if (_exercises[_currentExerciseIndex] == 'Jogging') {
-      // Formula: (Weight * 0.001) - 0.01 per step
-      double rate = (_bodyWeight * 0.001) - 0.01;
-      if (rate < 0.03) rate = 0.03; // Safety floor
-      calories = _steps * rate;
+      // LOG CALORIES
+      double calories = 0;
+      if (_exercises[_currentExerciseIndex] == 'Jogging') {
+        // Formula: (Weight * 0.001) - 0.01 per step
+        double rate = (_bodyWeight * 0.001) - 0.01;
+        if (rate < 0.03) rate = 0.03; // Safety floor
+        calories = _steps * rate;
+      }
+
+      await WorkoutLogService().logWorkout(
+        exerciseName: _exercises[_currentExerciseIndex],
+        repsCompleted: _reps,
+        durationSeconds: duration,
+        isCompleted: !forceFailure,
+        caloriesOverride: _exercises[_currentExerciseIndex] == 'Jogging'
+            ? calories
+            : null,
+      );
+    } catch (e) {
+      debugPrint("Error saving workout data: $e");
+      // Continue flow even if save fails
     }
 
-    await WorkoutLogService().logWorkout(
-      exerciseName: _exercises[_currentExerciseIndex],
-      repsCompleted: _reps,
-      durationSeconds: duration,
-      isCompleted: !forceFailure,
-      caloriesOverride: _exercises[_currentExerciseIndex] == 'Jogging'
-          ? calories
-          : null,
-    );
-
-    if (mounted) {
-      setState(() {
-        _isTransitioning = false;
-      });
+    // Store Calibration Result
+    if (widget.isCalibration) {
+      _calibrationResults[_exercises[_currentExerciseIndex]] = _reps;
     }
+
+    // NOTE: We do NOT reset _isTransitioning here yet.
+    // We wait until AFTER the rest timer or when the next exercise starts.
 
     if (_currentExerciseIndex < _exercises.length - 1) {
       // REST TIMER LOGIC
@@ -566,13 +626,15 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
           _currentExerciseIndex++;
           _reps = 0;
           _repCounter.reset();
-          _exerciseStartTime = DateTime.now(); // Reset timer for next
-          _hasStartedTimer = false; // Reset timer flag
-          _timer?.cancel(); // Ensure old timer is gone
+          _exerciseStartTime = DateTime.now();
+          _hasStartedTimer = false;
+          _timer?.cancel();
           _secondsRemaining = _totalTimeLimit;
+          // NOW we are ready for the next one
+          _isTransitioning = false;
         });
 
-        _updateCurrentTargets(); // Update Reps/Steps target for new exercise
+        _updateCurrentTargets();
         _updateOrientation();
 
         if (_exercises[_currentExerciseIndex] == 'Jogging') {
@@ -580,7 +642,17 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
         }
       }
     } else {
-      _showSummaryScreen();
+      if (mounted) {
+        setState(() {
+          _isTransitioning = false;
+        });
+      }
+
+      if (widget.isCalibration) {
+        Navigator.pop(context, _calibrationResults);
+      } else {
+        _showSummaryScreen();
+      }
     }
   }
 
@@ -905,12 +977,14 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
               final orientation = NativeDeviceOrientationReader.orientation(
                 context,
               );
-              int turns = 0;
+              int turns = 0; // Landmarks are now pre-rotated in stream
               if (orientation == NativeDeviceOrientation.landscapeLeft) {
-                turns = 3;
+                // Adjust if needed for Landscape (logic might need updates too)
+                // For now, keep 0 as we primarily support Portrait
+                turns = 0;
               } else if (orientation ==
                   NativeDeviceOrientation.landscapeRight) {
-                turns = 1;
+                turns = 0;
               }
 
               return ValueListenableBuilder<List<Map<String, double>>>(
@@ -943,6 +1017,23 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
               onPressed: () => Navigator.of(context).pop(),
             ),
           ),
+
+        // Refresh AI Button
+        Positioned(
+          top: 10,
+          right: 10,
+          child: FloatingActionButton.small(
+            heroTag: "refresh_ai_btn",
+            backgroundColor: Colors.black54,
+            child: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Refreshing AI Model...")),
+              );
+              _startPoseStream(); // Re-subscribe to stream
+            },
+          ),
+        ),
       ],
     );
   }
