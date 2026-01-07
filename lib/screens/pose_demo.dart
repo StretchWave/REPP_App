@@ -272,50 +272,39 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
   }
 
   Future<void> _loadInitialProgress() async {
+    // 1. Fetch latest progress
     final progress = await WorkoutService().getTodayProgress();
 
     int firstIncomplete = -1;
+
     for (int i = 0; i < _exercises.length; i++) {
-      // ... (existing logic)
-      final name = _exercises[i];
-      // Note: Progress keys in map are 'lookupName' (e.g. 'box_pushups').
-      // But _exercises has Titles (e.g. 'Box Push-Ups').
-      // WorkoutService.getTodayProgress returns map keyed by 'lookupName'.
-      // Wait, WorkoutService keys are exercise IDs or names?
-      // In WorkoutScreen, we saw:
-      // 'lookupName': item.exercise.name (which is title?) -> check LevelProgressionService.
-      // In WorkoutLogService:
-      // 'box_pushups' vs 'Box Push-Ups'.
-      // Verification needed: What are the keys in `progress` map?
-
-      // Let's assume mismatch might exist.
-      // If _plan exists, we can use `_plan[i]['lookupName']` if available.
-      // Workout_Screen sets `lookupName`.
-
-      String key = name;
+      final title = _exercises[i];
+      // Use lookupName if available, otherwise title
+      String key = title;
       if (_plan.isNotEmpty && i < _plan.length) {
-        key = _plan[i]['lookupName'] ?? name;
+        key = _plan[i]['lookupName'] ?? title;
       }
 
-      if (progress[key]?['isCompleted'] != true) {
+      final isCompleted = progress[key]?['isCompleted'] == true;
+
+      if (!isCompleted) {
         firstIncomplete = i;
         break;
       }
     }
 
-    // ...
-    // Update state
-    // Update state
+    if (!mounted) return;
 
-    if (mounted) {
-      if (firstIncomplete == -1) {
-        // All completed!
-        // We delay slightly to let the build finish first
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _showSummaryScreen();
-        });
-      } else if (firstIncomplete > 0) {
-        // Skip ahead
+    if (firstIncomplete == -1) {
+      // All exercises completed
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showSummaryScreen();
+      });
+    } else {
+      // We have an incomplete exercise.
+      // If it's not the first one (0), we need to jump.
+      // Even if it IS 0, we should ensure state is consistent.
+      if (firstIncomplete != _currentExerciseIndex) {
         setState(() {
           _currentExerciseIndex = firstIncomplete;
           _exerciseStartTime = DateTime.now();
@@ -323,7 +312,7 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
         _updateCurrentTargets();
         _updateOrientation();
         if (_exercises[_currentExerciseIndex] == 'Jogging') {
-          _initPedometer(); // Will call _restoreJoggingData internally
+          _initPedometer();
         }
       }
     }

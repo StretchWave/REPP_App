@@ -13,6 +13,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   // BMI Data
   double? _bmi;
   String _bmiCategory = "--";
+  int _workoutFrequency = 3;
 
   // Chart Data (Mon-Sun)
   List<double> _weeklyCalories = List.filled(7, 0.0);
@@ -43,7 +44,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       // 1. Fetch Profile for BMI
       final profileResponse = await Supabase.instance.client
           .from('profiles')
-          .select('height, weight')
+          .select('height, weight, workout_frequency')
           .eq('id', user.id)
           .single();
 
@@ -59,6 +60,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       // --- Process BMI ---
       final heightCm = (profileResponse['height'] as num?)?.toDouble() ?? 0.0;
       final weightKg = (profileResponse['weight'] as num?)?.toDouble() ?? 0.0;
+      _workoutFrequency =
+          (profileResponse['workout_frequency'] as num?)?.toInt() ?? 3;
       _calculateBMI(heightCm, weightKg);
 
       // --- Process Logs ---
@@ -261,6 +264,31 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
   }
 
+  bool _isWorkoutDay(int weekday) {
+    // 1 = Mon, 7 = Sun
+    switch (_workoutFrequency) {
+      case 3:
+        // Mon(1), Wed(3), Fri(5)
+        return weekday == 1 || weekday == 3 || weekday == 5;
+      case 4:
+        // Mon(1), Tue(2), Thu(4), Fri(5)
+        return weekday == 1 || weekday == 2 || weekday == 4 || weekday == 5;
+      case 5:
+        // Mon(1), Tue(2), Wed(3), Fri(5), Sat(6)
+        return weekday == 1 ||
+            weekday == 2 ||
+            weekday == 3 ||
+            weekday == 5 ||
+            weekday == 6;
+      case 6:
+        // Mon(1) -> Sat(6)
+        return weekday != 7;
+      default:
+        // Fallback 3 days
+        return weekday == 1 || weekday == 3 || weekday == 5;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -451,36 +479,43 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 day: 'Mon',
                 value: _weeklyCalories[0].toInt(),
                 heightFactor: _weeklyCalories[0] / maxVal,
+                weekday: 1,
               ),
               _buildBar(
                 day: 'Tue',
                 value: _weeklyCalories[1].toInt(),
                 heightFactor: _weeklyCalories[1] / maxVal,
+                weekday: 2,
               ),
               _buildBar(
                 day: 'Wed',
                 value: _weeklyCalories[2].toInt(),
                 heightFactor: _weeklyCalories[2] / maxVal,
+                weekday: 3,
               ),
               _buildBar(
                 day: 'Thu',
                 value: _weeklyCalories[3].toInt(),
                 heightFactor: _weeklyCalories[3] / maxVal,
+                weekday: 4,
               ),
               _buildBar(
                 day: 'Fri',
                 value: _weeklyCalories[4].toInt(),
                 heightFactor: _weeklyCalories[4] / maxVal,
+                weekday: 5,
               ),
               _buildBar(
                 day: 'Sat',
                 value: _weeklyCalories[5].toInt(),
                 heightFactor: _weeklyCalories[5] / maxVal,
+                weekday: 6,
               ),
               _buildBar(
                 day: 'Sun',
                 value: _weeklyCalories[6].toInt(),
                 heightFactor: _weeklyCalories[6] / maxVal,
+                weekday: 7,
               ),
             ],
           ),
@@ -494,7 +529,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     required String day,
     required int value,
     required double heightFactor,
+    required int weekday,
   }) {
+    // If it is a Rest Day AND no calories burned, show rest emoji
+    if (value == 0 && !_isWorkoutDay(weekday)) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          const Text('🧘', style: TextStyle(fontSize: 20)),
+          const SizedBox(height: 8),
+          Text(day, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        ],
+      );
+    }
+
     // protect against tiny bars
     double displayHeight = 120 * heightFactor;
     if (value > 0 && displayHeight < 4) displayHeight = 4;

@@ -75,11 +75,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadDailyMessage() async {
     try {
+      // 1. Fetch User Data (Profile) First
+      // We need this for Workout Frequency & Power Level
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select()
+            .eq('id', user.id)
+            .single();
+        _userData = profile;
+        _powerLevel = profile['power_level'] ?? 0;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();
       final todayKey = "${now.year}-${now.month}-${now.day}";
 
-      // 1. Check if message locked for today
+      // 2. Check if message locked for today
       final savedDate = prefs.getString('daily_message_date');
       if (savedDate == todayKey) {
         final savedMsg = prefs.getString('daily_message_content');
@@ -92,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
 
-      // 2. Generate New Message
+      // 3. Generate New Message
       final yesterday = now.subtract(const Duration(days: 1));
       final start = DateTime(yesterday.year, yesterday.month, yesterday.day);
       final end = start
@@ -121,24 +134,12 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
 
-      // 3. Pick Random
+      // 4. Pick Random
       final randomMsg = options[Random().nextInt(options.length)];
 
-      // 4. Save
+      // 5. Save
       await prefs.setString('daily_message_date', todayKey);
       await prefs.setString('daily_message_content', randomMsg);
-
-      // 5. Fetch Power Level for Navigation
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user != null) {
-        final profile = await Supabase.instance.client
-            .from('profiles')
-            .select()
-            .eq('id', user.id)
-            .single();
-        _userData = profile;
-        _powerLevel = profile['power_level'] ?? 0;
-      }
 
       if (mounted) {
         setState(() {
@@ -269,6 +270,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const RecommendationScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildMenuOption(
+                    icon: Icons.timer_outlined,
+                    title: 'Time Limited Event',
+                    subtitle: 'Join exclusive challenges',
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Time Limited Events coming soon!'),
+                          backgroundColor: Colors.orangeAccent,
                         ),
                       );
                     },

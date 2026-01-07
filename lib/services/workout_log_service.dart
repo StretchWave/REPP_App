@@ -98,6 +98,14 @@ class WorkoutLogService {
 
   /// Checks consistency over the last 7 days.
   /// Returns a Map with 'successDays' count and 'totalDays' (7).
+  /// A day is successful if:
+  /// 1. At least one workout is completed.
+  /// 2. Fewer than 3 workouts are failed.
+  ///
+  /// Conversely, a day is considered "Failed" (not successful) if:
+  /// - No workouts are performed (0 logs).
+  /// - 3 or more workouts are failed (explicit failure).
+  /// - Only failed workouts are performed (even if < 3), and no successes.
   Future<Map<String, int>> checkWeeklyConsistency() async {
     final user = _client.auth.currentUser;
     if (user == null) return {'successDays': 0, 'totalDays': 7};
@@ -107,25 +115,59 @@ class WorkoutLogService {
       const Duration(days: 6),
     ); // 7 days inclusive
 
-    // We want to verify if there is at least ONE completed workout per day.
     try {
+      // Fetch BOTH completed and failed logs
       final response = await _client
           .from('workout_logs')
           .select('created_at, is_completed')
           .eq('user_id', user.id)
-          .eq('is_completed', true)
           .gte('created_at', startOfWindow.toIso8601String());
 
       final List<dynamic> data = response;
-      Set<String> uniqueDays = {};
+
+      // Group by day (YYYY-MM-DD)
+      final Map<String, List<Map<String, dynamic>>> dailyLogs = {};
 
       for (var row in data) {
         final date = DateTime.parse(row['created_at']).toLocal();
         final dayKey = "${date.year}-${date.month}-${date.day}";
-        uniqueDays.add(dayKey);
+
+        dailyLogs.putIfAbsent(dayKey, () => []).add(row);
       }
 
-      return {'successDays': uniqueDays.length, 'totalDays': 7};
+      int successDays = 0;
+
+      // Iterate through the last 7 days to ensure we check specific windows if needed,
+      // but here we just count how many "unique days" in the logs were successful.
+      // Wait, we need to count successful days from the logs we FOUND.
+      // If a day has NO logs, it is 0 successes automatically.
+
+      for (var entry in dailyLogs.entries) {
+        final logs = entry.value;
+
+        int failures = 0;
+        int successes = 0;
+
+        for (var log in logs) {
+          if (log['is_completed'] == true) {
+            successes++;
+          } else {
+            failures++;
+          }
+        }
+
+        // Logic: Failed if >= 3 failures, even if there are successes.
+        if (failures >= 3) {
+          // Failed day - do not count as success
+          continue;
+        }
+
+        if (successes > 0) {
+          successDays++;
+        }
+      }
+
+      return {'successDays': successDays, 'totalDays': 7};
     } catch (e) {
       // ignore: avoid_print
       print("Error checking consistency: $e");
