@@ -852,7 +852,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showEditFitnessGoals() {
     String selectedTimeline = _duration;
-    int selectedFreq = int.tryParse(_frequency.split(' ')[0]) ?? 3;
+    int selectedFreq = (int.tryParse(_frequency.split(' ')[0]) ?? 3).clamp(
+      3,
+      6,
+    );
     String selectedIntensity = _intensity;
 
     List<String> timelines = ['4 Weeks', '8 Weeks', '12 Weeks', '∞ Long term'];
@@ -907,9 +910,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     Slider(
                       value: selectedFreq.toDouble(),
-                      min: 1,
-                      max: 7,
-                      divisions: 6,
+                      min: 3,
+                      max: 6,
+                      divisions: 3,
                       activeColor: Colors.amber,
                       label: "$selectedFreq days",
                       onChanged: (val) =>

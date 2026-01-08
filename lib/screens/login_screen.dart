@@ -15,6 +15,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
   bool _isLoading = false;
 
   @override
@@ -95,9 +96,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(30),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -109,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 80,
                             height: 80,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
+                              color: Colors.white.withValues(alpha: 0.1),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -138,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                           ),
                         ),
                         const SizedBox(height: 32),
@@ -168,7 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: Text(
                               'Forgot Password?',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
+                                color: Colors.white.withValues(alpha: 0.8),
                                 fontSize: 13,
                               ),
                             ),
@@ -215,7 +218,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             Expanded(
                               child: Divider(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                               ),
                             ),
                             Padding(
@@ -225,14 +228,14 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: Text(
                                 'OR',
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.5),
+                                  color: Colors.white.withValues(alpha: 0.5),
                                   fontSize: 12,
                                 ),
                               ),
                             ),
                             Expanded(
                               child: Divider(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withValues(alpha: 0.2),
                               ),
                             ),
                           ],
@@ -241,21 +244,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 32),
 
                         // Social Logins
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildSocialButton(Icons.phone_android),
-                            _buildSocialButton(
-                              Icons.circle,
-                              color: Colors.blue,
-                            ), // Google-ish
-                            _buildSocialButton(
-                              Icons.apple,
-                              color: Colors.redAccent,
-                            ), // Apple-ish color for demo
-                          ],
-                        ),
-
                         const SizedBox(height: 32),
 
                         // Sign Up Link
@@ -265,7 +253,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Text(
                               "Don't have an account? ",
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
+                                color: Colors.white.withValues(alpha: 0.6),
                                 fontSize: 13,
                               ),
                             ),
@@ -300,18 +288,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSocialButton(IconData icon, {Color? color}) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: Icon(icon, color: color ?? Colors.white, size: 24),
     );
   }
 }

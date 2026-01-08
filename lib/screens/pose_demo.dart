@@ -983,10 +983,12 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
 
                   return RotatedBox(
                     quarterTurns: turns,
-                    child: CustomPaint(
-                      painter: SettingsService().showSkeleton
-                          ? SkeletonPainter(landmarks)
-                          : null,
+                    child: ClipRect(
+                      child: CustomPaint(
+                        painter: SettingsService().showSkeleton
+                            ? SkeletonPainter(landmarks)
+                            : null,
+                      ),
                     ),
                   );
                 },
