@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ai_fitness_tracker/screens/model_loading_screen.dart';
 import 'package:ai_fitness_tracker/screens/pose_demo.dart';
 import 'package:ai_fitness_tracker/services/workout_service.dart';
 import 'package:ai_fitness_tracker/services/level_progression_service.dart';
@@ -407,7 +408,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             onPressed: () async {
               await Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => PoseDemoScreen(workoutPlan: _workouts),
+                  builder: (context) => ModelLoadingScreen(
+                    nextScreen: PoseDemoScreen(workoutPlan: _workouts),
+                  ),
                 ),
               );
               _loadData();

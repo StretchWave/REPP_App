@@ -7,7 +7,7 @@ import 'package:ai_fitness_tracker/screens/diet_screen.dart';
 import 'package:ai_fitness_tracker/screens/profile_screen.dart';
 import 'package:ai_fitness_tracker/screens/recommendation_screen.dart';
 import 'package:ai_fitness_tracker/services/workout_log_service.dart';
-import 'package:ai_fitness_tracker/widgets/ai_status_overlay.dart';
+
 import 'package:ai_fitness_tracker/screens/calibration_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -39,11 +39,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadDailyMessage();
-
-    // Trigger AI Model Preload only when Home Screen is reached
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      GlobalAiOverlay.startLoading(context);
-    });
   }
 
   bool _isTodayWorkoutDay(int freq) {

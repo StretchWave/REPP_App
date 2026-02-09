@@ -1,5 +1,6 @@
 import 'package:ai_fitness_tracker/logic/difficulty_scaler.dart';
 import 'package:ai_fitness_tracker/screens/home_screen.dart';
+import 'package:ai_fitness_tracker/screens/model_loading_screen.dart';
 import 'package:ai_fitness_tracker/screens/pose_demo.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -82,8 +83,12 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     final results = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            PoseDemoScreen(workoutPlan: calibrationPlan, isCalibration: true),
+        builder: (context) => ModelLoadingScreen(
+          nextScreen: PoseDemoScreen(
+            workoutPlan: calibrationPlan,
+            isCalibration: true,
+          ),
+        ),
       ),
     );
 

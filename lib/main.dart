@@ -1,7 +1,6 @@
 import 'package:ai_fitness_tracker/screens/home_screen.dart';
 import 'package:ai_fitness_tracker/screens/login_screen.dart';
 
-import 'package:ai_fitness_tracker/widgets/ai_status_overlay.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -35,9 +34,6 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'REPP',
       debugShowCheckedModeBanner: false,
-      builder: (context, child) {
-        return GlobalAiOverlay(child: child!);
-      },
       home: Supabase.instance.client.auth.currentUser != null
           ? const HomeScreen()
           : const LoginScreen(),
