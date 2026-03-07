@@ -95,6 +95,10 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
   late ValueNotifier<List<Map<String, double>>> _skeletonNotifier;
   StreamSubscription? _poseSubscription;
 
+  NativeDeviceOrientation _deviceOrientation =
+      NativeDeviceOrientation.portraitUp;
+  StreamSubscription<NativeDeviceOrientation>? _orientationSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -105,6 +109,17 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
     _skeletonNotifier = ValueNotifier<List<Map<String, double>>>([]);
 
     TtsService(); // Warm up TTS engine
+
+    _orientationSubscription = NativeDeviceOrientationCommunicator()
+        .onOrientationChanged(useSensor: true)
+        .listen((orientation) {
+          if (mounted) {
+            setState(() {
+              _deviceOrientation = orientation;
+            });
+          }
+        });
+
     _checkPermission();
     _loadUserProfile();
     if (!widget.isCalibration)
@@ -124,10 +139,6 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
     // Default orientation until loaded
     _updateOrientation();
     _exerciseStartTime = DateTime.now();
-
-    if (!widget.isCalibration) {
-      _loadInitialProgress();
-    }
   }
 
   void _startPoseStream() {
@@ -138,14 +149,44 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
       // Stop processing if we are transitioning (e.g. Rest Timer, Saving)
       if (_isTransitioning) return;
 
-      // 1. Normalize Landmarks (Rotate 90 CW to fix Sensor vs UI mismatch)
-      // Input: (x,y) relative to Sensor (Landscape native).
-      // Output: (x',y') relative to Portrait UI.
-      // 90 Deg CW: x' = 1 - y, y' = x
+      // 1. Normalize Landmarks dynamically based on device physical tilt
+      // The MediaPipe models are computing on unrotated Landscape-Left bounds.
+      // So sensors map differently when holding phone.
       final List<Map<String, double>> normalized = landmarks.map((l) {
+        double rawX = l['x']!;
+        double rawY = l['y']!;
+        double finalX = rawX;
+        double finalY = rawY;
+
+        switch (_deviceOrientation) {
+          case NativeDeviceOrientation.portraitUp:
+            // Rotate 90 CW (Head at Left mapped to Top)
+            finalX = 1.0 - rawY;
+            finalY = rawX;
+            break;
+          case NativeDeviceOrientation.portraitDown:
+            // Rotate 90 CCW
+            finalX = rawY;
+            finalY = 1.0 - rawX;
+            break;
+          case NativeDeviceOrientation.landscapeLeft:
+            // Native sensor orientation (1:1)
+            finalX = rawX;
+            finalY = rawY;
+            break;
+          case NativeDeviceOrientation.landscapeRight:
+            // Upside down (rotate 180)
+            finalX = 1.0 - rawX;
+            finalY = 1.0 - rawY;
+            break;
+          default:
+            finalX = 1.0 - rawY;
+            finalY = rawX;
+        }
+
         return {
-          'x': 1.0 - l['y']!,
-          'y': l['x']!,
+          'x': finalX,
+          'y': finalY,
           'z': l['z']!,
           'visibility': l['visibility']!,
         };
@@ -332,6 +373,17 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
 
   @override
   void dispose() {
+    _orientationSubscription?.cancel();
+    _poseSubscription?.cancel();
+    _stepCountStream = null;
+    _timer?.cancel();
+
+    _repNotifier.dispose();
+    _feedbackNotifier.dispose();
+    _accuracyNotifier.dispose();
+    _isProperFormNotifier.dispose();
+    _skeletonNotifier.dispose();
+
     // Reset to Portrait only when leaving
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
@@ -782,11 +834,6 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
                   onPressed: _switchCamera,
                   tooltip: "Switch Camera",
                 ),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: _resetCounter,
-                  tooltip: "Reset Counter",
-                ),
               ],
             ),
       body: isLandscape
@@ -961,37 +1008,17 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
       children: [
         Positioned.fill(child: PoseCameraPreview(key: _cameraKey)),
         Positioned.fill(
-          child: NativeDeviceOrientationReader(
-            builder: (context) {
-              final orientation = NativeDeviceOrientationReader.orientation(
-                context,
-              );
-              int turns = 0; // Landmarks are now pre-rotated in stream
-              if (orientation == NativeDeviceOrientation.landscapeLeft) {
-                // Adjust if needed for Landscape (logic might need updates too)
-                // For now, keep 0 as we primarily support Portrait
-                turns = 0;
-              } else if (orientation ==
-                  NativeDeviceOrientation.landscapeRight) {
-                turns = 0;
-              }
+          child: ValueListenableBuilder<List<Map<String, double>>>(
+            valueListenable: _skeletonNotifier,
+            builder: (context, landmarks, _) {
+              if (landmarks.isEmpty) return const SizedBox();
 
-              return ValueListenableBuilder<List<Map<String, double>>>(
-                valueListenable: _skeletonNotifier,
-                builder: (context, landmarks, _) {
-                  if (landmarks.isEmpty) return const SizedBox();
-
-                  return RotatedBox(
-                    quarterTurns: turns,
-                    child: ClipRect(
-                      child: CustomPaint(
-                        painter: SettingsService().showSkeleton
-                            ? SkeletonPainter(landmarks)
-                            : null,
-                      ),
-                    ),
-                  );
-                },
+              return ClipRect(
+                child: CustomPaint(
+                  painter: SettingsService().showSkeleton
+                      ? SkeletonPainter(landmarks)
+                      : null,
+                ),
               );
             },
           ),

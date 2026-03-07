@@ -181,7 +181,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 20),
                   _buildSummaryCard(),
                   const SizedBox(height: 24),
-                  const SizedBox(height: 24),
                   // Workout Button Logic
                   Builder(
                     builder: (context) {

@@ -33,11 +33,9 @@ class RepCounter {
   ExerciseLogic _getStrategy(String exercise) {
     switch (exercise) {
       case 'Push-Ups':
-      case 'Box Push-Ups': // Box pushups share logic but with flag (handled inside logic or we can separate)
-        // Note: PushUpLogic defaults for standard.
-        // If we want detailed Box differentiation, we might need to pass params or subclass.
-        // For now, using standard Logic as base.
-        return PushUpLogic();
+        return PushUpLogic(strictLegs: true);
+      case 'Box Push-Ups':
+        return PushUpLogic(strictLegs: false);
       case 'Squats':
         return SquatLogic();
       case 'Sit-Ups':
@@ -49,6 +47,7 @@ class RepCounter {
       case 'Floor Dips':
         return FloorDipLogic();
       case 'Bird Dog':
+      case 'Bird Dogs':
         return BirdDogLogic();
       case 'Leg Raises':
         return LegRaiseLogic();

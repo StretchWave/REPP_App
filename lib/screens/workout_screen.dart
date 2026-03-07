@@ -480,7 +480,19 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox.shrink(),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.white70),
+                tooltip: 'Debug: Restart Workout',
+                onPressed: () async {
+                  await WorkoutService().clearTodayProgress();
+                  _loadData();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Workout progress reset')),
+                    );
+                  }
+                },
+              ),
             ],
           ),
           const SizedBox(height: 5),

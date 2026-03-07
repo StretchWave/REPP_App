@@ -34,9 +34,16 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'REPP',
       debugShowCheckedModeBanner: false,
-      home: Supabase.instance.client.auth.currentUser != null
-          ? const HomeScreen()
-          : const LoginScreen(),
+      home: StreamBuilder<AuthState>(
+        stream: Supabase.instance.client.auth.onAuthStateChange,
+        builder: (context, snapshot) {
+          final session = snapshot.data?.session;
+          if (session != null) {
+            return const HomeScreen();
+          }
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }

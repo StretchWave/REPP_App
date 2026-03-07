@@ -81,6 +81,10 @@ class TtsService {
         final duration = debounceDuration ?? const Duration(seconds: 4);
         if (now.difference(lastTime) < duration) return;
       }
+
+      // Cleanup old entries to prevent memory leak (remove anything older than 1 minute)
+      _debounceMap.removeWhere((k, time) => now.difference(time).inMinutes > 1);
+
       _debounceMap[key] = now;
     }
 

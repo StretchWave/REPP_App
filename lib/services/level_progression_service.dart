@@ -226,7 +226,10 @@ class LevelProgressionService {
     // 2. Select Exercises
     // We prioritize higher tier exercises for higher levels.
     // Randomize order for variety
-    var rng = Random(safeLevel + DateTime.now().day);
+    final now = DateTime.now();
+    var rng = Random(
+      safeLevel + (now.year * 10000 + now.month * 100 + now.day),
+    );
     eligibleExercises.shuffle(rng);
 
     // Dynamic Exercise Count Logic

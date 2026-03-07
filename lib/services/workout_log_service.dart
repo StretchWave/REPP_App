@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WorkoutLogService {
@@ -35,8 +36,11 @@ class WorkoutLogService {
     if (timestamp != null) {
       data['created_at'] = timestamp.toIso8601String();
     }
-
-    await _client.from('workout_logs').insert(data);
+    try {
+      await _client.from('workout_logs').insert(data);
+    } catch (e) {
+      debugPrint("Error logging workout: $e");
+    }
   }
 
   /// Calculates estimated calories based on exercise type and intensity
@@ -91,7 +95,7 @@ class WorkoutLogService {
       return total;
     } catch (e) {
       // ignore: avoid_print
-      print("Error fetching calories: $e");
+      debugPrint("Error fetching calories: $e");
       return 0.0;
     }
   }
@@ -130,7 +134,9 @@ class WorkoutLogService {
 
       for (var row in data) {
         final date = DateTime.parse(row['created_at']).toLocal();
-        final dayKey = "${date.year}-${date.month}-${date.day}";
+        final monthStr = date.month.toString().padLeft(2, '0');
+        final dayStr = date.day.toString().padLeft(2, '0');
+        final dayKey = "${date.year}-$monthStr-$dayStr";
 
         dailyLogs.putIfAbsent(dayKey, () => []).add(row);
       }
@@ -184,7 +190,9 @@ class WorkoutLogService {
       final response = await _client
           .from('workout_logs')
           .select('created_at')
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .order('created_at', ascending: false)
+          .limit(1000);
 
       final List<dynamic> data = response;
       if (data.isEmpty) return 0;
@@ -240,7 +248,9 @@ class WorkoutLogService {
       final response = await _client
           .from('workout_logs')
           .select('created_at')
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .order('created_at', ascending: false)
+          .limit(3000); // larger limit for max streak
 
       final List<dynamic> data = response;
       if (data.isEmpty) return 0;

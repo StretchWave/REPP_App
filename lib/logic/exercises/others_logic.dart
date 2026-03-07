@@ -4,9 +4,8 @@ import 'exercise_logic.dart';
 class PikePushUpLogic extends ExerciseLogic {
   @override
   void processLandmarks(List<Map<String, double>> landmarks) {
-    // Basic implementation similar to PushUp but with pike checks
-    // ... (Due to space, simplified migration of logic from RepCounter)
-    // Copying logic exactly as it was
+    if (landmarks.length < 33) return;
+
     // Detect Side
     double leftScore =
         landmarks[11]['visibility']! +

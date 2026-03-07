@@ -1,6 +1,10 @@
 import 'exercise_logic.dart';
 
 class PushUpLogic extends ExerciseLogic {
+  final bool strictLegs;
+
+  PushUpLogic({this.strictLegs = true});
+
   @override
   void processLandmarks(List<Map<String, double>> landmarks) {
     if (landmarks.length < 33) return;
@@ -34,7 +38,15 @@ class PushUpLogic extends ExerciseLogic {
       return;
     }
 
-    _processPushUp(shoulder, elbow, wrist, hip, knee, ankle);
+    _processPushUp(
+      shoulder,
+      elbow,
+      wrist,
+      hip,
+      knee,
+      ankle,
+      strictLegs: strictLegs,
+    );
   }
 
   void _processPushUp(

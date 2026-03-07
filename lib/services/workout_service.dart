@@ -70,4 +70,11 @@ class WorkoutService {
     }
     return false;
   }
+
+  /// Clears today's progress (mainly for debugging)
+  Future<void> clearTodayProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _getTodayKey();
+    await prefs.remove(key);
+  }
 }
