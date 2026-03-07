@@ -3,6 +3,7 @@ import 'package:ai_fitness_tracker/screens/model_loading_screen.dart';
 import 'package:ai_fitness_tracker/screens/pose_demo.dart';
 import 'package:ai_fitness_tracker/services/workout_service.dart';
 import 'package:ai_fitness_tracker/services/level_progression_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WorkoutScreen extends StatefulWidget {
@@ -59,7 +60,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         _canFocusLowerBody = profileData['can_focus_lower_body'] ?? true;
         _goalIntensity = profileData['goal_intensity'] ?? 'Moderate';
         final freq = profileData['workout_frequency'] ?? 3;
-        _isRestDay = !_isTodayWorkoutDay(freq);
+        _isRestDay = !(await _isTodayWorkoutDay(freq));
       }
     } catch (e) {
       debugPrint("Error loading power level: $e");
@@ -177,31 +178,39 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     });
   }
 
-  bool _isTodayWorkoutDay(int freq) {
-    // 1 = Mon, 7 = Sun
-    final weekday = DateTime.now().weekday;
+  /// Returns true if today is a workout day, based on a rolling schedule
+  /// anchored to the user's start date (the first day they used the app).
+  /// Day 0 (start day) is ALWAYS a workout day.
+  Future<bool> _isTodayWorkoutDay(int freq) async {
+    final prefs = await SharedPreferences.getInstance();
+    const key = 'workout_start_date';
 
-    switch (freq) {
-      case 3:
-        // Mon(1), Wed(3), Fri(5)
-        return weekday == 1 || weekday == 3 || weekday == 5;
-      case 4:
-        // Mon(1), Tue(2), Thu(4), Fri(5)
-        return weekday == 1 || weekday == 2 || weekday == 4 || weekday == 5;
-      case 5:
-        // Mon(1), Tue(2), Wed(3), Fri(5), Sat(6)
-        return weekday == 1 ||
-            weekday == 2 ||
-            weekday == 3 ||
-            weekday == 5 ||
-            weekday == 6;
-      case 6:
-        // Mon(1) -> Sat(6)
-        return weekday != 7;
-      default:
-        // Fallback
-        return weekday == 1 || weekday == 3 || weekday == 5;
+    // Read or initialise the start date
+    String? startStr = prefs.getString(key);
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+
+    if (startStr == null) {
+      // First time — store today as the start date
+      startStr = todayDate.toIso8601String();
+      await prefs.setString(key, startStr);
     }
+
+    final startDate = DateTime.parse(startStr);
+    final startDay = DateTime(startDate.year, startDate.month, startDate.day);
+    final dayOffset = todayDate.difference(startDay).inDays;
+
+    // 7-day rolling patterns: true = workout, false = rest
+    // Day 0 is always a workout day.
+    const Map<int, List<bool>> patterns = {
+      3: [true, false, true, false, true, false, false], // 3W, 4R per week
+      4: [true, true, false, true, true, false, false], // 4W, 3R per week
+      5: [true, true, true, false, true, true, false], // 5W, 2R per week
+      6: [true, true, true, true, true, true, false], // 6W, 1R per week
+    };
+
+    final cycle = patterns[freq] ?? patterns[3]!;
+    return cycle[dayOffset % cycle.length];
   }
 
   Map<String, dynamic> _getExerciseMetadata(String id) {

@@ -23,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   int _powerLevel = 0;
   Map<String, dynamic>? _userData;
+  bool _isWorkoutDay = true; // defaults to workout day until loaded
 
   final List<String> _motivationalQuotes = [
     "Consistency is key! Keep showing up.",
@@ -41,31 +42,35 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadDailyMessage();
   }
 
-  bool _isTodayWorkoutDay(int freq) {
-    // 1 = Mon, 7 = Sun
-    final weekday = DateTime.now().weekday;
+  /// Returns true if today is a workout day, based on a rolling schedule
+  /// anchored to the user's start date (the first day they used the app).
+  /// Day 0 (start day) is ALWAYS a workout day.
+  Future<bool> _isTodayWorkoutDay(int freq) async {
+    final prefs = await SharedPreferences.getInstance();
+    const key = 'workout_start_date';
 
-    switch (freq) {
-      case 3:
-        // Mon(1), Wed(3), Fri(5)
-        return weekday == 1 || weekday == 3 || weekday == 5;
-      case 4:
-        // Mon(1), Tue(2), Thu(4), Fri(5)
-        return weekday == 1 || weekday == 2 || weekday == 4 || weekday == 5;
-      case 5:
-        // Mon(1), Tue(2), Wed(3), Fri(5), Sat(6)
-        return weekday == 1 ||
-            weekday == 2 ||
-            weekday == 3 ||
-            weekday == 5 ||
-            weekday == 6;
-      case 6:
-        // Mon(1) -> Sat(6)
-        return weekday != 7;
-      default:
-        // Fallback
-        return weekday == 1 || weekday == 3 || weekday == 5;
+    String? startStr = prefs.getString(key);
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+
+    if (startStr == null) {
+      startStr = todayDate.toIso8601String();
+      await prefs.setString(key, startStr);
     }
+
+    final startDate = DateTime.parse(startStr);
+    final startDay = DateTime(startDate.year, startDate.month, startDate.day);
+    final dayOffset = todayDate.difference(startDay).inDays;
+
+    const Map<int, List<bool>> patterns = {
+      3: [true, false, true, false, true, false, false],
+      4: [true, true, false, true, true, false, false],
+      5: [true, true, true, false, true, true, false],
+      6: [true, true, true, true, true, true, false],
+    };
+
+    final cycle = patterns[freq] ?? patterns[3]!;
+    return cycle[dayOffset % cycle.length];
   }
 
   Future<void> _loadDailyMessage() async {
@@ -81,6 +86,10 @@ class _HomeScreenState extends State<HomeScreen> {
             .single();
         _userData = profile;
         _powerLevel = profile['power_level'] ?? 0;
+
+        // Resolve today's workout/rest status
+        final freq = (profile['workout_frequency'] as num?)?.toInt() ?? 3;
+        _isWorkoutDay = await _isTodayWorkoutDay(freq);
       }
 
       final prefs = await SharedPreferences.getInstance();
@@ -176,9 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Workout Button Logic
                   Builder(
                     builder: (context) {
-                      final freq = _userData?['workout_frequency'] ?? 3;
-                      final isWorkoutDay = _isTodayWorkoutDay(freq);
-                      final isRest = !isWorkoutDay;
+                      final isRest = !_isWorkoutDay;
 
                       return _buildMenuOption(
                         icon: isRest
