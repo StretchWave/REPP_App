@@ -3,6 +3,7 @@ import 'package:ai_fitness_tracker/screens/rankings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:ai_fitness_tracker/screens/settings_screen.dart';
+import 'package:ai_fitness_tracker/screens/creator_mode_recording_screen.dart';
 import 'package:ai_fitness_tracker/services/workout_log_service.dart';
 import 'package:ai_fitness_tracker/services/level_progression_service.dart';
 
@@ -21,6 +22,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _phone = "Not set";
   int _age = 0;
   String _gender = "Not set";
+  bool _isAdmin = false;
 
   // Stats
   int _powerLevel = 0;
@@ -139,6 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (mounted) {
           setState(() {
             _fullName = data['full_name'] ?? "User";
+            _isAdmin = data['is_admin'] ?? false;
             _powerLevel = data['power_level'] ?? 0;
             _phone = data['phone_number'] ?? "Not set";
             _age = data['age'] ?? 0;
@@ -277,10 +280,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Stack(
                     alignment: Alignment.bottomRight,
                     children: [
-                      const CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Color(0xFF2C313A),
-                        child: Icon(Icons.person, size: 60, color: Colors.blue),
+                      GestureDetector(
+                        onLongPress: () {
+                          debugPrint("Long Press! _isAdmin is: $_isAdmin");
+                          if (_isAdmin) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const CreatorModeRecordingScreen(),
+                              ),
+                            );
+                          }
+                        },
+                        child: const CircleAvatar(
+                          radius: 50,
+                          backgroundColor: Color(0xFF2C313A),
+                          child: Icon(
+                            Icons.person,
+                            size: 60,
+                            color: Colors.blue,
+                          ),
+                        ),
                       ),
                       Container(
                         padding: const EdgeInsets.all(6),

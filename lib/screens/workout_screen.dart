@@ -36,30 +36,23 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     final progress = await WorkoutService().getTodayProgress();
 
     // 2. Load Power Level
-    int powerLevel = 1; // Default to 1
+    int powerLevel = 1;
     try {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId != null) {
         final data = await Supabase.instance.client
             .from('profiles')
-            .select('power_level')
+            .select(
+              'power_level, is_admin, can_focus_upper_body, can_focus_lower_body, workout_frequency, goal_intensity',
+            )
             .eq('id', userId)
             .single();
         powerLevel = data['power_level'] ?? 1;
 
-        // Fetch Physical Limitations
-        final profileData = await Supabase.instance.client
-            .from('profiles')
-            .select(
-              'can_focus_upper_body, can_focus_lower_body, workout_frequency, goal_intensity',
-            )
-            .eq('id', userId)
-            .single();
-
-        _canFocusUpperBody = profileData['can_focus_upper_body'] ?? true;
-        _canFocusLowerBody = profileData['can_focus_lower_body'] ?? true;
-        _goalIntensity = profileData['goal_intensity'] ?? 'Moderate';
-        final freq = profileData['workout_frequency'] ?? 3;
+        _canFocusUpperBody = data['can_focus_upper_body'] ?? true;
+        _canFocusLowerBody = data['can_focus_lower_body'] ?? true;
+        _goalIntensity = data['goal_intensity'] ?? 'Moderate';
+        final freq = data['workout_frequency'] ?? 3;
         _isRestDay = !(await _isTodayWorkoutDay(freq));
       }
     } catch (e) {
@@ -68,109 +61,107 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
     if (mounted) {
       if (_isRestDay) {
-        setState(() {}); // Just rebuild to show rest day message
+        setState(() {});
         return;
       }
+
+      // 3. Fetch Approved Dynamic Workouts
+      List<Map<String, dynamic>> dynamicWorkouts = [];
+      try {
+        final dynamicData = await Supabase.instance.client
+            .from('workout_definitions')
+            .select()
+            .eq('is_approved', true)
+            .lte('unlock_power_level', powerLevel);
+        dynamicWorkouts = List<Map<String, dynamic>>.from(dynamicData);
+      } catch (e) {
+        debugPrint("Error loading dynamic workouts: $e");
+      }
+
       setState(() {
         _progress = progress;
         _powerLevel = powerLevel;
-        _generateWorkout();
+        _generateWorkout(dynamicWorkouts);
       });
 
-      // Retry Logic: Check if workouts are empty
+      // Retry Logic...
       if (_workouts.isEmpty) {
         if (_retryCount < 3) {
-          // Wait 5 seconds before retrying
           await Future.delayed(const Duration(seconds: 5));
           if (mounted && _workouts.isEmpty) {
             _retryCount++;
-            debugPrint("Retrying workout load... Attempt $_retryCount");
             _loadData();
           }
         } else {
-          // Stop loading and show error
-          setState(() {
-            _isError = true;
-          });
+          setState(() => _isError = true);
         }
       } else {
-        // Success, reset counters
         _retryCount = 0;
         _isError = false;
       }
     }
   }
 
-  void _generateWorkout() {
-    // 1. Get Generated Routine from Service
+  void _generateWorkout(List<Map<String, dynamic>> customWorkouts) {
+    // 1. Get Base Generated Routine
     final items = LevelProgressionService().getWorkoutForLevel(
       _powerLevel,
       canFocusUpperBody: _canFocusUpperBody,
       canFocusLowerBody: _canFocusLowerBody,
     );
 
-    // 2. Map to UI format
+    // 2. Map Base Workouts
     _workouts = items.map((item) {
       final meta = _getExerciseMetadata(item.exercise.id);
-
-      // Difficulty Multiplier
-      double multiplier = 1.0;
-      if (_goalIntensity == 'Light') {
-        multiplier = 0.5; // 50% difficulty
-      } else if (_goalIntensity == 'Moderate') {
-        multiplier = 0.75; // 75% difficulty
-      }
-      // Intense stays 1.0
-
-      // Apply multiplier
+      double multiplier = _goalIntensity == 'Light'
+          ? 0.5
+          : (_goalIntensity == 'Moderate' ? 0.75 : 1.0);
       int adjustedTarget = (item.targetValue * multiplier).round();
-      if (adjustedTarget < 1) adjustedTarget = 1; // Minimum 1 rep
-
-      // Format Sets/Reps string
-      String setsText = "3 sets × $adjustedTarget ${item.unit}";
-
-      dynamic finalTargetValue = adjustedTarget;
-      String finalUnit = item.unit;
-
-      if (item.exercise.name == 'Jogging') {
-        // Convert seconds to steps (approx 1.5 steps/sec)
-        // Jogging might trigger on time or steps.
-        // If we scale time, steps scale automatically.
-        int steps = (adjustedTarget * 1.5).round();
-        setsText = "$steps steps";
-        finalTargetValue = steps;
-        finalUnit = 'steps';
-      } else if (item.exercise.type == ExerciseType.duration) {
-        // Convert seconds to minutes for clean display if needed
-        if (item.unit == 'seconds') {
-          // If duration is scaled, it might be weird (e.g. 45 seconds).
-          // Let's keep seconds unless it's > 60
-          if (adjustedTarget >= 60) {
-            int mins = (adjustedTarget / 60).round();
-            // Append 'min' or 'mins'
-            setsText = "$mins min${mins > 1 ? 's' : ''}";
-          } else {
-            setsText = "$adjustedTarget sec";
-          }
-        }
-      }
+      if (adjustedTarget < 1) adjustedTarget = 1;
 
       return {
         'title': item.exercise.name,
-        'lookupName': item.exercise.name, // Used for progress tracking key
+        'lookupName': item.exercise.name,
         'icon': meta['icon'],
-        'sets': setsText,
+        'sets': "3 sets × $adjustedTarget ${item.unit}",
         'cal': meta['cal'],
         'time': meta['time'],
         'illustration_icon': meta['illustration_icon'],
         'color': meta['color'],
-        // Store adjusted targets for camera
-        'targetValue': finalTargetValue,
-        'unit': finalUnit,
+        'targetValue': adjustedTarget,
+        'unit': item.unit,
+        'isCustom': false,
       };
     }).toList();
 
-    // Ensure Jogging is last
+    // 3. Add & Scale Custom Approved Workouts
+    for (final cw in customWorkouts) {
+      final baseReps = (cw['base_reps'] ?? 10).toInt();
+      final unlockLevel = (cw['unlock_power_level'] ?? 1).toInt();
+      final repMultiplier = (cw['rep_multiplier'] ?? 1.0).toDouble();
+
+      // Scaling Logic: base + (current - unlock) * multiplier
+      final scaledReps =
+          baseReps + ((_powerLevel - unlockLevel) * repMultiplier).round();
+
+      final def = cw['definition_data'] as Map<String, dynamic>;
+
+      _workouts.add({
+        'title': cw['exercise_name'] ?? "Custom",
+        'lookupName': cw['exercise_name'],
+        'icon': '✨',
+        'sets': "3 sets × $scaledReps reps",
+        'cal': '40 cal', // Placeholder
+        'time': '5 min', // Placeholder
+        'illustration_icon': Icons.auto_awesome,
+        'color': Colors.amber[100],
+        'targetValue': scaledReps,
+        'unit': 'reps',
+        'isCustom': true,
+        'definition': def,
+      });
+    }
+
     _workouts.sort((a, b) {
       if (a['title'] == 'Jogging') return 1;
       if (b['title'] == 'Jogging') return -1;
@@ -207,6 +198,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       4: [true, true, false, true, true, false, false], // 4W, 3R per week
       5: [true, true, true, false, true, true, false], // 5W, 2R per week
       6: [true, true, true, true, true, true, false], // 6W, 1R per week
+      7: [true, true, true, true, true, true, true], // 7W, 0R per week
     };
 
     final cycle = patterns[freq] ?? patterns[3]!;
@@ -415,6 +407,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           height: 56,
           child: ElevatedButton.icon(
             onPressed: () async {
+              // Custom workout navigation (Sequence-based)
+              // For simplicity, we just pass the full list to a handler
+              // In this app, many standard exercises are hardcoded in PoseDemoScreen.
+              // We'll update PoseDemoScreen to handle the 'definition' if present.
               await Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => ModelLoadingScreen(

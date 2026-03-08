@@ -6,6 +6,7 @@ import 'package:ai_fitness_tracker/screens/analytics_screen.dart';
 import 'package:ai_fitness_tracker/screens/diet_screen.dart';
 import 'package:ai_fitness_tracker/screens/profile_screen.dart';
 import 'package:ai_fitness_tracker/screens/recommendation_screen.dart';
+import 'package:ai_fitness_tracker/screens/workout_library_screen.dart';
 import 'package:ai_fitness_tracker/services/workout_log_service.dart';
 
 import 'package:ai_fitness_tracker/screens/calibration_screen.dart';
@@ -210,24 +211,20 @@ class _HomeScreenState extends State<HomeScreen> {
                             return;
                           }
 
-                          if (_powerLevel == 0) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CalibrationScreen(
-                                  userData: _userData ?? {},
-                                ),
-                              ),
-                            );
-                          } else {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const WorkoutScreen(),
-                              ),
-                            );
-                          }
+                          _navigateToWorkout(context);
                         },
+                        onLongPress: isRest
+                            ? () {
+                                // DEBUG BYPASS
+                                _navigateToWorkout(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Debug: Bypassing Rest Day"),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              }
+                            : null,
                       );
                     },
                   ),
@@ -276,6 +273,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
+                  if (_userData?['is_admin'] == true) ...[
+                    _buildMenuOption(
+                      icon: Icons.history_edu,
+                      title: 'Creator Library',
+                      subtitle: 'Play custom workouts you created',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const WorkoutLibraryScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   _buildMenuOption(
                     icon: Icons.event,
                     title: 'Events',
@@ -413,16 +426,34 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _navigateToWorkout(BuildContext context) {
+    if (_powerLevel == 0) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CalibrationScreen(userData: _userData ?? {}),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const WorkoutScreen()),
+      );
+    }
+  }
+
   Widget _buildMenuOption({
     required IconData icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
+    VoidCallback? onLongPress,
     Color? color,
     bool isLocked = false,
   }) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         decoration: BoxDecoration(

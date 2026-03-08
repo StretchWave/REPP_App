@@ -197,8 +197,17 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
 
       // 3. Process Landmarks (Logic)
       final currentExercise = _exercises[_currentExerciseIndex];
+      Map<String, dynamic>? customDef;
+      if (_plan.isNotEmpty && _currentExerciseIndex < _plan.length) {
+        customDef = _plan[_currentExerciseIndex]['definition'];
+      }
+
       if (_plan.isNotEmpty || _defaultExercises.contains(currentExercise)) {
-        _repCounter.processLandmarks(normalized, currentExercise);
+        _repCounter.processLandmarks(
+          normalized,
+          currentExercise,
+          customDefinition: customDef,
+        );
         _handleTtsAndLogic();
       }
     });

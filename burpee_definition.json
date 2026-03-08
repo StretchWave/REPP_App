@@ -1,0 +1,48 @@
+{
+    "exercise_name": "Burpee (Pro)",
+    "exercise_type": "Rep-based",
+    "velocity_requirement": 0.3,
+    "states": [
+        {
+            "stateName": "Standing Start",
+            "targetAngles": {
+                "leftElbow": 170.0,
+                "rightElbow": 170.0,
+                "leftHip": 175.0,
+                "rightHip": 175.0,
+                "leftKnee": 175.0,
+                "rightKnee": 175.0
+            },
+            "tolerance": 15.0,
+            "holdTime": 0
+        },
+        {
+            "stateName": "Pushup Down",
+            "targetAngles": {
+                "leftElbow": 70.0,
+                "rightElbow": 70.0,
+                "leftHip": 170.0,
+                "rightHip": 170.0,
+                "leftKnee": 170.0,
+                "rightKnee": 170.0
+            },
+            "tolerance": 20.0,
+            "holdTime": 0
+        },
+        {
+            "stateName": "Jump Peak",
+            "targetAngles": {
+                "leftElbow": 180.0,
+                "rightElbow": 180.0,
+                "leftHip": 180.0,
+                "rightHip": 180.0,
+                "leftKnee": 175.0,
+                "rightKnee": 175.0,
+                "leftShoulder": 170.0,
+                "rightShoulder": 170.0
+            },
+            "tolerance": 25.0,
+            "holdTime": 0
+        }
+    ]
+}

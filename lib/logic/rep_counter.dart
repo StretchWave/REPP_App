@@ -3,6 +3,7 @@ import 'package:ai_fitness_tracker/logic/exercises/push_up_logic.dart';
 import 'package:ai_fitness_tracker/logic/exercises/squat_logic.dart';
 import 'package:ai_fitness_tracker/logic/exercises/sit_up_logic.dart';
 import 'package:ai_fitness_tracker/logic/exercises/others_logic.dart';
+import 'package:ai_fitness_tracker/logic/exercises/sequential_exercise_logic.dart';
 
 class RepCounter {
   ExerciseLogic? _currentStrategy;
@@ -19,18 +20,25 @@ class RepCounter {
     _currentStrategy?.reset();
   }
 
-  void processLandmarks(List<Map<String, double>> landmarks, String exercise) {
+  void processLandmarks(
+    List<Map<String, double>> landmarks,
+    String exercise, {
+    Map<String, dynamic>? customDefinition,
+  }) {
     // Switch Strategy if exercise changed
     if (_lastExercise != exercise) {
       _lastExercise = exercise;
-      _currentStrategy = _getStrategy(exercise);
+      _currentStrategy = _getStrategy(exercise, customDefinition);
       _currentStrategy?.reset(); // Reset when switching
     }
 
     _currentStrategy?.processLandmarks(landmarks);
   }
 
-  ExerciseLogic _getStrategy(String exercise) {
+  ExerciseLogic _getStrategy(
+    String exercise,
+    Map<String, dynamic>? customDefinition,
+  ) {
     switch (exercise) {
       case 'Push-Ups':
         return PushUpLogic(strictLegs: true);
@@ -51,9 +59,12 @@ class RepCounter {
         return BirdDogLogic();
       case 'Leg Raises':
         return LegRaiseLogic();
-      // Add others as needed
       default:
-        return PushUpLogic(); // Fallback
+        // If we have a custom definition, use the sequential logic
+        if (customDefinition != null) {
+          return SequentialExerciseLogic(definition: customDefinition);
+        }
+        return PushUpLogic(); // Universal Fallback
     }
   }
 }
