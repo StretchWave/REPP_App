@@ -5,17 +5,10 @@ class PikePushUpLogic extends ExerciseLogic {
   @override
   void processLandmarks(List<Map<String, double>> landmarks) {
     if (landmarks.length < 33) return;
+    clearFrameState();
 
     // Detect Side
-    double leftScore =
-        landmarks[11]['visibility']! +
-        landmarks[13]['visibility']! +
-        landmarks[15]['visibility']!;
-    double rightScore =
-        landmarks[12]['visibility']! +
-        landmarks[14]['visibility']! +
-        landmarks[16]['visibility']!;
-    String side = leftScore > rightScore ? "Left" : "Right";
+    String side = detectSide(landmarks, [11, 13, 15], [12, 14, 16]);
 
     Map<String, double> shoulder = side == "Left"
         ? landmarks[11]
@@ -85,15 +78,8 @@ class ChairDipLogic extends ExerciseLogic {
   @override
   void processLandmarks(List<Map<String, double>> landmarks) {
     if (landmarks.length < 33) return;
-    double leftScore =
-        landmarks[11]['visibility']! +
-        landmarks[13]['visibility']! +
-        landmarks[15]['visibility']!;
-    double rightScore =
-        landmarks[12]['visibility']! +
-        landmarks[14]['visibility']! +
-        landmarks[16]['visibility']!;
-    String side = leftScore > rightScore ? "Left" : "Right";
+    clearFrameState();
+    String side = detectSide(landmarks, [11, 13, 15], [12, 14, 16]);
 
     Map<String, double> shoulder = side == "Left"
         ? landmarks[11]
@@ -141,15 +127,8 @@ class LegRaiseLogic extends ExerciseLogic {
   @override
   void processLandmarks(List<Map<String, double>> landmarks) {
     if (landmarks.length < 33) return;
-    double leftScore =
-        landmarks[23]['visibility']! +
-        landmarks[25]['visibility']! +
-        landmarks[27]['visibility']!;
-    double rightScore =
-        landmarks[24]['visibility']! +
-        landmarks[26]['visibility']! +
-        landmarks[28]['visibility']!;
-    String side = leftScore > rightScore ? "Left" : "Right";
+    clearFrameState();
+    String side = detectSide(landmarks, [23, 25, 27], [24, 26, 28]);
 
     Map<String, double> shoulder = side == "Left"
         ? landmarks[11]
@@ -195,15 +174,8 @@ class FloorDipLogic extends ExerciseLogic {
   @override
   void processLandmarks(List<Map<String, double>> landmarks) {
     if (landmarks.length < 33) return;
-    double leftScore =
-        landmarks[11]['visibility']! +
-        landmarks[13]['visibility']! +
-        landmarks[15]['visibility']!;
-    double rightScore =
-        landmarks[12]['visibility']! +
-        landmarks[14]['visibility']! +
-        landmarks[16]['visibility']!;
-    String side = leftScore > rightScore ? "Left" : "Right";
+    clearFrameState();
+    String side = detectSide(landmarks, [11, 13, 15], [12, 14, 16]);
 
     Map<String, double> shoulder = side == "Left"
         ? landmarks[11]

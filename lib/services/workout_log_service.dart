@@ -176,7 +176,7 @@ class WorkoutLogService {
       return {'successDays': successDays, 'totalDays': 7};
     } catch (e) {
       // ignore: avoid_print
-      print("Error checking consistency: $e");
+      debugPrint("Error checking consistency: $e");
       return {'successDays': 0, 'totalDays': 7};
     }
   }
@@ -234,7 +234,7 @@ class WorkoutLogService {
       return currentStreak;
     } catch (e) {
       // ignore: avoid_print
-      print("Error calculating streak: $e");
+      debugPrint("Error calculating streak: $e");
       return 0;
     }
   }
@@ -289,7 +289,7 @@ class WorkoutLogService {
       return maxStreak;
     } catch (e) {
       // ignore: avoid_print
-      print("Error calculating max streak: $e");
+      debugPrint("Error calculating max streak: $e");
       return 0;
     }
   }

@@ -188,7 +188,7 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -210,7 +210,7 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
                     Text(
                       'Let\'s define your path to success',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 14,
                       ),
                     ),
@@ -220,7 +220,7 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 40),
                       child: LinearProgressIndicator(
                         value: 0.6, // Step 2/3 approx
-                        backgroundColor: Colors.white.withOpacity(0.2),
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
                         valueColor: const AlwaysStoppedAnimation<Color>(
                           Colors.white,
                         ),
@@ -404,7 +404,7 @@ class _FitnessGoalsScreenState extends State<FitnessGoalsScreen> {
           ),
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               child: const Center(
                 child: CircularProgressIndicator(color: Colors.white),
               ),

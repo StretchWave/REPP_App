@@ -77,7 +77,7 @@ class SkeletonPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
+  bool shouldRepaint(covariant SkeletonPainter oldDelegate) {
+    return !identical(landmarks, oldDelegate.landmarks);
   }
 }

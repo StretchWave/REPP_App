@@ -4,18 +4,10 @@ class SitUpLogic extends ExerciseLogic {
   @override
   void processLandmarks(List<Map<String, double>> landmarks) {
     if (landmarks.length < 33) return;
+    clearFrameState();
 
     // Detect Side
-    double leftScore =
-        landmarks[11]['visibility']! +
-        landmarks[13]['visibility']! +
-        landmarks[15]['visibility']!;
-    double rightScore =
-        landmarks[12]['visibility']! +
-        landmarks[14]['visibility']! +
-        landmarks[16]['visibility']!;
-
-    String side = leftScore > rightScore ? "Left" : "Right";
+    String side = detectSide(landmarks, [11, 13, 15], [12, 14, 16]);
 
     Map<String, double> shoulder = side == "Left"
         ? landmarks[11]

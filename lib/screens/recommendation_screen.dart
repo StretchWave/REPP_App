@@ -15,9 +15,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   // User Data
   String _bodyType = 'Mesomorph'; // Default
   String _goal = 'General Fitness';
-  int _age = 25;
   double _weight = 70;
-  double _height = 175;
 
   @override
   void initState() {
@@ -44,9 +42,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
             // If you have a specific goal column like 'primary_goal' use that.
             // Based on previous files, 'goal_intensity' (Light/Moderate/Intense) gives a hint,
             // but let's see if we can infer better or just use body type heavily.
-            _age = data['age'] ?? 25;
             _weight = (data['weight'] as num?)?.toDouble() ?? 70.0;
-            _height = (data['height'] as num?)?.toDouble() ?? 175.0;
             _isLoading = false;
           });
         }
@@ -349,7 +345,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -360,7 +356,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.person, color: Colors.white, size: 30),
@@ -402,10 +398,10 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
+        color: Colors.grey.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: borderColor ?? Colors.grey.withOpacity(0.2),
+          color: borderColor ?? Colors.grey.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -415,7 +411,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
 
   Widget _buildTrainingCard(Map<String, dynamic> data) {
     return _buildGlassCard(
-      borderColor: Colors.redAccent.withOpacity(0.3),
+      borderColor: Colors.redAccent.withValues(alpha: 0.3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -453,10 +449,10 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.redAccent.withOpacity(0.2),
+                      color: Colors.redAccent.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: Colors.redAccent.withOpacity(0.5),
+                        color: Colors.redAccent.withValues(alpha: 0.5),
                       ),
                     ),
                     child: Text(
@@ -505,7 +501,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
 
   Widget _buildNutritionCard(Map<String, dynamic> data) {
     return _buildGlassCard(
-      borderColor: Colors.orange.withOpacity(0.3),
+      borderColor: Colors.orange.withValues(alpha: 0.3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -587,9 +583,9 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.1),
+              color: Colors.grey.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.withOpacity(0.2)),
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -615,7 +611,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
+        color: Colors.grey.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -624,7 +620,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 20),

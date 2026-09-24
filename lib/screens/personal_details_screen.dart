@@ -78,7 +78,7 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -100,7 +100,7 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
                 Text(
                   'Help us personalize your fitness journey',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 14,
                   ),
                 ),
@@ -110,7 +110,7 @@ class _PersonalDetailsScreenState extends State<PersonalDetailsScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 40),
                   child: LinearProgressIndicator(
                     value: 0.3, // Step 1/3 approx
-                    backgroundColor: Colors.white.withOpacity(0.2),
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       Colors.white,
                     ),

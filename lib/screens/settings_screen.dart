@@ -143,8 +143,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _settings.setIsMetric(val);
                     setState(() => _isMetric = val);
                   },
-                  activeColor: Colors.orange,
-                  activeTrackColor: Colors.orange.withOpacity(0.5),
+                  activeThumbColor: Colors.orange,
+                  activeTrackColor: Colors.orange.withValues(alpha: 0.5),
                 ),
               ),
               _buildToggleItem(
@@ -255,7 +255,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 subtitle: "Permanently delete your account",
                 icon: Icons.delete_forever,
                 iconColor: Colors.red,
-                iconBackgroundColor: Colors.red.withOpacity(0.1),
+                iconBackgroundColor: Colors.red.withValues(alpha: 0.1),
                 titleColor: Colors.red,
                 onTap: _deleteAccount,
               ),
@@ -414,7 +414,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: iconBackgroundColor ?? iconColor.withOpacity(0.1),
+                  color: iconBackgroundColor ?? iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: iconColor, size: 20),
@@ -469,7 +469,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
+              color: iconColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(_getIconForToggle(title), color: iconColor, size: 20),
@@ -498,7 +498,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: const Color(0xFF5D6672),
           ),
         ],

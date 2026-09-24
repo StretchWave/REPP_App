@@ -90,7 +90,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // 3. Workout Stats (Aggregate)
         final workoutData = await Supabase.instance.client
             .from('workout_logs')
-            .select('calories_burned');
+            .select('calories_burned')
+            .eq('user_id', user.id);
 
         // Calculate Stats
         int wCount = workoutData.length;
@@ -160,12 +161,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _canFocusLowerBody = data['can_focus_lower_body'] ?? true;
 
             // Infer Goal
-            if (_intensity.contains("Intense"))
+            if (_intensity.contains("Intense")) {
               _primaryGoal = "Body Building";
-            else if (_intensity.contains("Light"))
+            } else if (_intensity.contains("Light")) {
               _primaryGoal = "Maintenance";
-            else
+            } else {
               _primaryGoal = "Fitness";
+            }
 
             // Calculate BMI
             if (_height > 0 && _weight > 0) {
@@ -528,7 +530,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF2C313A),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
@@ -576,7 +578,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF2C313A),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Column(
         children: [
@@ -593,7 +595,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.redAccent.withOpacity(0.2),
+                  color: Colors.redAccent.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -625,7 +627,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 8),
           LinearProgressIndicator(
             value: 0.05,
-            backgroundColor: Colors.grey.withOpacity(0.2),
+            backgroundColor: Colors.grey.withValues(alpha: 0.2),
             color: Colors.white,
             minHeight: 8,
             borderRadius: BorderRadius.circular(4),
@@ -1277,14 +1279,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               GestureDetector(
                 onTap: () {
-                  if (title.contains("Personal"))
+                  if (title.contains("Personal")) {
                     _showEditPersonalDetails();
-                  else if (title.contains("Body Metrics"))
+                  } else if (title.contains("Body Metrics")) {
                     _showEditBodyMetrics();
-                  else if (title.contains("Fitness Goals"))
+                  } else if (title.contains("Fitness Goals")) {
                     _showEditFitnessGoals();
-                  else if (title.contains("Health Information"))
+                  } else if (title.contains("Health Information")) {
                     _showEditHealthInformation();
+                  }
                 },
                 child: const Text(
                   "Edit",
@@ -1401,7 +1404,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),

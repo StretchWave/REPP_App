@@ -168,7 +168,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
               Text(
                 'We will measure your fitness level with 3 quick tests:',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   fontSize: 16,
                 ),
                 textAlign: TextAlign.center,
@@ -183,7 +183,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
               Text(
                 'Do as many repetitions as you can with good form.',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
+                  color: Colors.white.withValues(alpha: 0.6),
                   fontSize: 14,
                 ),
                 textAlign: TextAlign.center,
@@ -194,7 +194,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
           ElevatedButton(
             onPressed: _startCalibration,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white.withOpacity(0.2),
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 20),
               shape: RoundedRectangleBorder(
@@ -219,10 +219,10 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
             child: Text(
               'Skip for Now',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 16,
                 decoration: TextDecoration.underline,
-                decorationColor: Colors.white.withOpacity(0.6),
+                decorationColor: Colors.white.withValues(alpha: 0.6),
               ),
             ),
           ),

@@ -46,6 +46,7 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
 
   // Pedometer Vars
   Stream<StepCount>? _stepCountStream;
+  StreamSubscription<StepCount>? _stepCountSubscription;
   int _steps = 0;
   int _initialSteps = -1;
   int _savedSteps = 0;
@@ -122,8 +123,9 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
 
     _checkPermission();
     _loadUserProfile();
-    if (!widget.isCalibration)
+    if (!widget.isCalibration) {
       _loadInitialProgress(); // Skip loading progress for calibration
+    }
     _startPoseStream();
 
     // Initialize Workout Data
@@ -384,6 +386,7 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
   void dispose() {
     _orientationSubscription?.cancel();
     _poseSubscription?.cancel();
+    _stepCountSubscription?.cancel();
     _stepCountStream = null;
     _timer?.cancel();
 
@@ -428,7 +431,6 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
     }
 
     TtsService().stop(); // Stop speaking on exit
-    _timer?.cancel();
     super.dispose();
   }
 
@@ -440,7 +442,8 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
     _restoreJoggingData();
 
     _stepCountStream = Pedometer.stepCountStream;
-    _stepCountStream!.listen(_onStepCount).onError(_onStepCountError);
+    _stepCountSubscription?.cancel();
+    _stepCountSubscription = _stepCountStream!.listen(_onStepCount)..onError(_onStepCountError);
   }
 
   Future<void> _restoreJoggingData() async {
@@ -696,12 +699,12 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
         setState(() {
           _isTransitioning = false;
         });
-      }
-
-      if (widget.isCalibration) {
-        Navigator.pop(context, _calibrationResults);
-      } else {
-        _showSummaryScreen();
+        
+        if (widget.isCalibration) {
+          Navigator.pop(context, _calibrationResults);
+        } else {
+          _showSummaryScreen();
+        }
       }
     }
   }
@@ -909,8 +912,8 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: feedback.contains("Fix") || feedback == "GO LOWER"
-                        ? Colors.redAccent.withOpacity(0.8)
-                        : Colors.blueAccent.withOpacity(0.8),
+                        ? Colors.redAccent.withValues(alpha: 0.8)
+                        : Colors.blueAccent.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -985,8 +988,8 @@ class _PoseDemoScreenState extends State<PoseDemoScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: feedback.contains("Fix")
-                      ? Colors.redAccent.withOpacity(0.8)
-                      : Colors.blueAccent.withOpacity(0.8),
+                      ? Colors.redAccent.withValues(alpha: 0.8)
+                      : Colors.blueAccent.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(

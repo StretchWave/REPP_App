@@ -3,8 +3,8 @@ import 'package:ai_fitness_tracker/screens/model_loading_screen.dart';
 import 'package:ai_fitness_tracker/screens/pose_demo.dart';
 import 'package:ai_fitness_tracker/services/workout_service.dart';
 import 'package:ai_fitness_tracker/services/level_progression_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ai_fitness_tracker/core/workout_day_utils.dart';
 
 class WorkoutScreen extends StatefulWidget {
   const WorkoutScreen({super.key});
@@ -24,6 +24,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   bool _canFocusLowerBody = true; // Default to true
   String _goalIntensity = 'Moderate';
   bool _isRestDay = false;
+  String _userGoal = "Fitness"; // Added for info card
 
   @override
   void initState() {
@@ -52,8 +53,17 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         _canFocusUpperBody = data['can_focus_upper_body'] ?? true;
         _canFocusLowerBody = data['can_focus_lower_body'] ?? true;
         _goalIntensity = data['goal_intensity'] ?? 'Moderate';
+        
+        if (_goalIntensity.contains("Intense")) {
+          _userGoal = "Body Building";
+        } else if (_goalIntensity.contains("Light")) {
+          _userGoal = "Maintenance";
+        } else {
+          _userGoal = "Fitness";
+        }
+
         final freq = data['workout_frequency'] ?? 3;
-        _isRestDay = !(await _isTodayWorkoutDay(freq));
+        _isRestDay = !(await WorkoutDayUtils.isTodayWorkoutDay(freq));
       }
     } catch (e) {
       debugPrint("Error loading power level: $e");
@@ -169,41 +179,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     });
   }
 
-  /// Returns true if today is a workout day, based on a rolling schedule
-  /// anchored to the user's start date (the first day they used the app).
-  /// Day 0 (start day) is ALWAYS a workout day.
-  Future<bool> _isTodayWorkoutDay(int freq) async {
-    final prefs = await SharedPreferences.getInstance();
-    const key = 'workout_start_date';
 
-    // Read or initialise the start date
-    String? startStr = prefs.getString(key);
-    final today = DateTime.now();
-    final todayDate = DateTime(today.year, today.month, today.day);
-
-    if (startStr == null) {
-      // First time — store today as the start date
-      startStr = todayDate.toIso8601String();
-      await prefs.setString(key, startStr);
-    }
-
-    final startDate = DateTime.parse(startStr);
-    final startDay = DateTime(startDate.year, startDate.month, startDate.day);
-    final dayOffset = todayDate.difference(startDay).inDays;
-
-    // 7-day rolling patterns: true = workout, false = rest
-    // Day 0 is always a workout day.
-    const Map<int, List<bool>> patterns = {
-      3: [true, false, true, false, true, false, false], // 3W, 4R per week
-      4: [true, true, false, true, true, false, false], // 4W, 3R per week
-      5: [true, true, true, false, true, true, false], // 5W, 2R per week
-      6: [true, true, true, true, true, true, false], // 6W, 1R per week
-      7: [true, true, true, true, true, true, true], // 7W, 0R per week
-    };
-
-    final cycle = patterns[freq] ?? patterns[3]!;
-    return cycle[dayOffset % cycle.length];
-  }
 
   Map<String, dynamic> _getExerciseMetadata(String id) {
     switch (id) {
@@ -457,7 +433,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 Text(
                   'Back',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 16,
                   ),
                 ),
@@ -482,11 +458,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 onPressed: () async {
                   await WorkoutService().clearTodayProgress();
                   _loadData();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Workout progress reset')),
-                    );
-                  }
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Workout progress reset')),
+                  );
                 },
               ),
             ],
@@ -495,7 +470,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           Text(
             "AI-selected for your goals",
             style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
+              color: Colors.white.withValues(alpha: 0.6),
               fontSize: 14,
             ),
           ),
@@ -516,7 +491,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -654,7 +629,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
@@ -709,7 +684,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            "Based on your fitness level and goal to lose 5kg, I've selected high-intensity interval exercises to maximize calorie burn.",
+            "Based on your fitness level and your primary goal of $_userGoal, I've selected exercises tailored to your current capabilities.",
             style: TextStyle(
               color: Colors.grey[700],
               fontSize: 14,

@@ -2,10 +2,15 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 class PoseBridge {
+  static final PoseBridge _instance = PoseBridge._internal();
+  factory PoseBridge() => _instance;
+  PoseBridge._internal();
+
   static const EventChannel _channel = EventChannel('com.workout/pose_stream');
+  Stream<List<Map<String, double>>>? _cachedStream;
 
   Stream<List<Map<String, double>>> get poseStream {
-    return _channel.receiveBroadcastStream().map((event) {
+    _cachedStream ??= _channel.receiveBroadcastStream().map((event) {
       try {
         final List<dynamic> flatList = event;
         final int pointCount = flatList.length ~/ 4;
@@ -23,8 +28,10 @@ class PoseBridge {
 
         return mapped;
       } catch (e) {
-        return [];
+        return <Map<String, double>>[];
       }
-    });
+    }).asBroadcastStream();
+    return _cachedStream!;
   }
 }
+

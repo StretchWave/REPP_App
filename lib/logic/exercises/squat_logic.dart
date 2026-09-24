@@ -4,18 +4,10 @@ class SquatLogic extends ExerciseLogic {
   @override
   void processLandmarks(List<Map<String, double>> landmarks) {
     if (landmarks.length < 33) return;
+    clearFrameState();
 
     // Detect Side based on Legs
-    double leftScore =
-        landmarks[23]['visibility']! +
-        landmarks[25]['visibility']! +
-        landmarks[27]['visibility']!;
-    double rightScore =
-        landmarks[24]['visibility']! +
-        landmarks[26]['visibility']! +
-        landmarks[28]['visibility']!;
-
-    String side = leftScore > rightScore ? "Left" : "Right";
+    String side = detectSide(landmarks, [23, 25, 27], [24, 26, 28]);
 
     Map<String, double> shoulder = side == "Left"
         ? landmarks[11]

@@ -1,7 +1,6 @@
 import 'package:ai_fitness_tracker/screens/home_screen.dart';
 import 'package:ai_fitness_tracker/screens/login_screen.dart';
 
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,8 +8,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:ai_fitness_tracker/core/constants.dart';
 import 'package:ai_fitness_tracker/services/settings_service.dart';
-
-List<CameraDescription> cameras = [];
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +31,14 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'REPP',
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: const Color(0xFFF8F9FA),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1E2126),
+          brightness: Brightness.light,
+        ),
+      ),
       home: StreamBuilder<AuthState>(
         stream: Supabase.instance.client.auth.onAuthStateChange,
         builder: (context, snapshot) {

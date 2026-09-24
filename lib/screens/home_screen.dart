@@ -11,6 +11,7 @@ import 'package:ai_fitness_tracker/services/workout_log_service.dart';
 
 import 'package:ai_fitness_tracker/screens/calibration_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ai_fitness_tracker/core/workout_day_utils.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,36 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadDailyMessage();
   }
 
-  /// Returns true if today is a workout day, based on a rolling schedule
-  /// anchored to the user's start date (the first day they used the app).
-  /// Day 0 (start day) is ALWAYS a workout day.
-  Future<bool> _isTodayWorkoutDay(int freq) async {
-    final prefs = await SharedPreferences.getInstance();
-    const key = 'workout_start_date';
 
-    String? startStr = prefs.getString(key);
-    final today = DateTime.now();
-    final todayDate = DateTime(today.year, today.month, today.day);
-
-    if (startStr == null) {
-      startStr = todayDate.toIso8601String();
-      await prefs.setString(key, startStr);
-    }
-
-    final startDate = DateTime.parse(startStr);
-    final startDay = DateTime(startDate.year, startDate.month, startDate.day);
-    final dayOffset = todayDate.difference(startDay).inDays;
-
-    const Map<int, List<bool>> patterns = {
-      3: [true, false, true, false, true, false, false],
-      4: [true, true, false, true, true, false, false],
-      5: [true, true, true, false, true, true, false],
-      6: [true, true, true, true, true, true, false],
-    };
-
-    final cycle = patterns[freq] ?? patterns[3]!;
-    return cycle[dayOffset % cycle.length];
-  }
 
   Future<void> _loadDailyMessage() async {
     try {
@@ -90,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // Resolve today's workout/rest status
         final freq = (profile['workout_frequency'] as num?)?.toInt() ?? 3;
-        _isWorkoutDay = await _isTodayWorkoutDay(freq);
+        _isWorkoutDay = await WorkoutDayUtils.isTodayWorkoutDay(freq);
       }
 
       final prefs = await SharedPreferences.getInstance();
@@ -330,7 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'Welcome back!',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 14,
                     ),
                   ),
@@ -376,7 +348,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -416,7 +388,7 @@ class _HomeScreenState extends State<HomeScreen> {
               : Text(
                   _summaryMessage,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 14,
                     height: 1.5,
                   ),
@@ -461,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 5,
               offset: const Offset(0, 2),
             ),
@@ -472,7 +444,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(icon, color: Colors.white, size: 24),
@@ -494,7 +466,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       fontSize: 13,
                     ),
                   ),
@@ -503,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             Icon(
               isLocked ? Icons.lock : Icons.arrow_forward,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               size: 20,
             ),
           ],

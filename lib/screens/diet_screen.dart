@@ -76,29 +76,28 @@ class _DietScreenState extends State<DietScreen> {
               .eq('id', user.id)
               .single();
 
-          if (profile != null) {
-            _userHeight =
-                double.tryParse(profile['height']?.toString() ?? '0') ?? 0;
-            _userWeight =
-                double.tryParse(profile['weight']?.toString() ?? '0') ?? 0;
-            _userAge = int.tryParse(profile['age']?.toString() ?? '0') ?? 25;
-            _userGender = profile['gender'];
-            _workoutFreq =
-                int.tryParse(profile['workout_frequency']?.toString() ?? '3') ??
-                3;
+          _userHeight =
+              double.tryParse(profile['height']?.toString() ?? '0') ?? 0;
+          _userWeight =
+              double.tryParse(profile['weight']?.toString() ?? '0') ?? 0;
+          _userAge = int.tryParse(profile['age']?.toString() ?? '0') ?? 25;
+          _userGender = profile['gender'];
+          _workoutFreq =
+              int.tryParse(profile['workout_frequency']?.toString() ?? '3') ??
+              3;
 
-            // Recalculate if we have data now
+          // Recalculate if we have data now
+          _calculateRecommendedCalories();
+          
+          // Load saved target if exists
+          if (profile['target_weight'] != null) {
+            final savedTarget = profile['target_weight'].toString();
+            _targetWeight = savedTarget;
+            _targetWeightController.text = savedTarget;
+            _savedTargetWeight = savedTarget;
+            // If we have a saved target, treat it as manual/custom for now
+            // effectively overriding the default calculation initially
             _calculateRecommendedCalories();
-            // Load saved target if exists
-            if (profile['target_weight'] != null) {
-              final savedTarget = profile['target_weight'].toString();
-              _targetWeight = savedTarget;
-              _targetWeightController.text = savedTarget;
-              _savedTargetWeight = savedTarget;
-              // If we have a saved target, treat it as manual/custom for now
-              // effectively overriding the default calculation initially
-              _calculateRecommendedCalories();
-            }
           }
         }
       } catch (e) {
@@ -306,7 +305,7 @@ class _DietScreenState extends State<DietScreen> {
                 Text(
                   'Back',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 16,
                   ),
                 ),
@@ -336,7 +335,7 @@ class _DietScreenState extends State<DietScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -399,7 +398,7 @@ class _DietScreenState extends State<DietScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 5,
                   offset: const Offset(0, 2),
                 ),
@@ -493,7 +492,7 @@ class _DietScreenState extends State<DietScreen> {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6),
             fontSize: 12, // Small label
           ),
         ),
@@ -535,7 +534,7 @@ class _DietScreenState extends State<DietScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -689,15 +688,6 @@ class _DietScreenState extends State<DietScreen> {
     );
   }
 
-  // Helper to extract numeric value safely
-  double _parseWeight(String w) {
-    try {
-      return double.parse(w);
-    } catch (_) {
-      return 0.0;
-    }
-  }
-
   Widget _buildToggleBtn(String text, bool isManual) {
     final isSelected = _isManualGoal == isManual;
     return GestureDetector(
@@ -722,7 +712,7 @@ class _DietScreenState extends State<DietScreen> {
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(18),
           boxShadow: isSelected
-              ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4)]
+              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)]
               : null,
         ),
         child: Text(
@@ -800,7 +790,7 @@ class _DietScreenState extends State<DietScreen> {
           Text(
             "Target: $_goalReason",
             style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
               fontSize: 12,
               fontStyle: FontStyle.italic,
             ),

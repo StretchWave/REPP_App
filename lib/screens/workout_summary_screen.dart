@@ -101,8 +101,8 @@ class _WorkoutSummaryScreenState extends State<WorkoutSummaryScreen> {
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
                               color: isCompleted
-                                  ? Colors.greenAccent.withOpacity(0.2)
-                                  : Colors.redAccent.withOpacity(0.2),
+                                  ? Colors.greenAccent.withValues(alpha: 0.2)
+                                  : Colors.redAccent.withValues(alpha: 0.2),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(

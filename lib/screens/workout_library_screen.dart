@@ -99,7 +99,7 @@ class _WorkoutLibraryScreenState extends State<WorkoutLibraryScreen> {
                         Text(
                           "$type • $stateCount Stages",
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                           ),
                         ),
                         if (workout['is_approved'] == true)
@@ -232,11 +232,11 @@ class _WorkoutLibraryScreenState extends State<WorkoutLibraryScreen> {
                       })
                       .eq('id', workout['id']);
 
-                  if (mounted) {
-                    Navigator.pop(context);
-                    _fetchWorkouts();
-                  }
+                  if (!context.mounted) return;
+                  Navigator.pop(context);
+                  _fetchWorkouts();
                 } catch (e) {
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(SnackBar(content: Text("Format error: $e")));
@@ -258,13 +258,13 @@ class _WorkoutLibraryScreenState extends State<WorkoutLibraryScreen> {
           Icon(
             Icons.fitness_center,
             size: 64,
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
           ),
           const SizedBox(height: 16),
           Text(
             "No custom workouts found.",
             style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
               fontSize: 16,
             ),
           ),
@@ -272,7 +272,7 @@ class _WorkoutLibraryScreenState extends State<WorkoutLibraryScreen> {
           Text(
             "Go to Creator Mode to add one!",
             style: TextStyle(
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3),
               fontSize: 14,
             ),
           ),

@@ -190,8 +190,9 @@ class _CreatorModeScrubbingScreenState
 
   @override
   Widget build(BuildContext context) {
-    if (widget.frames.isEmpty)
+    if (widget.frames.isEmpty) {
       return const Scaffold(body: Center(child: Text("No frames available")));
+    }
 
     final currentSkeleton = widget.frames[_currentFrame];
 
@@ -313,15 +314,15 @@ class _CreatorModeScrubbingScreenState
                                   });
                                 },
                                 backgroundColor: Colors.white10,
-                                selectedColor: Colors.blueAccent.withOpacity(
-                                  0.3,
+                                selectedColor: Colors.blueAccent.withValues(
+                                  alpha: 0.3,
                                 ),
                                 checkmarkColor: Colors.blueAccent,
                                 shape: StadiumBorder(
                                   side: BorderSide(
                                     color: isSelected
                                         ? Colors.blueAccent
-                                        : Colors.grey.withOpacity(0.3),
+                                        : Colors.grey.withValues(alpha: 0.3),
                                   ),
                                 ),
                                 padding: const EdgeInsets.all(0),

@@ -14,7 +14,9 @@ class WorkoutService {
   /// Returns the key for today's workout data: "workout_progress_YYYY-MM-DD"
   String _getTodayKey() {
     final d = now;
-    return '$_workoutKeyPrefix${d.year}-${d.month}-${d.day}';
+    final month = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$_workoutKeyPrefix${d.year}-$month-$day';
   }
 
   /// Saves the completion status and duration for a specific exercise

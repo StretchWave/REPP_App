@@ -43,7 +43,12 @@ abstract class ExerciseLogic {
     Map<String, double> b,
     Map<String, double> c,
   ) {
-    if (a['x'] == 0 && a['y'] == 0) return 0.0; // Safety check for empty points
+    // Safety check for empty/zero points on all three landmarks
+    if ((a['x'] == 0 && a['y'] == 0) ||
+        (b['x'] == 0 && b['y'] == 0) ||
+        (c['x'] == 0 && c['y'] == 0)) {
+      return 0.0;
+    }
 
     final radians =
         atan2(c['y']! - b['y']!, c['x']! - b['x']!) -
@@ -54,4 +59,35 @@ abstract class ExerciseLogic {
     }
     return angle;
   }
+
+  /// Detects which side of the body is more visible, based on landmark
+  /// visibility scores for the given indices.
+  ///
+  /// [landmarks] - Full list of pose landmarks.
+  /// [leftIndices] - Landmark indices for the left side (e.g. [11, 13, 15]).
+  /// [rightIndices] - Landmark indices for the right side (e.g. [12, 14, 16]).
+  ///
+  /// Returns "Left" or "Right".
+  String detectSide(
+    List<Map<String, double>> landmarks,
+    List<int> leftIndices,
+    List<int> rightIndices,
+  ) {
+    double leftScore = 0;
+    for (final i in leftIndices) {
+      leftScore += landmarks[i]['visibility']!;
+    }
+    double rightScore = 0;
+    for (final i in rightIndices) {
+      rightScore += landmarks[i]['visibility']!;
+    }
+    return leftScore > rightScore ? "Left" : "Right";
+  }
+
+  /// Clears per-frame state before processing new landmarks.
+  /// Subclasses should call this at the start of [processLandmarks].
+  void clearFrameState() {
+    formIssues.clear();
+  }
 }
+

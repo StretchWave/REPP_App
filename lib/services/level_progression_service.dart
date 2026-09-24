@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:ai_fitness_tracker/services/workout_log_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -347,7 +348,7 @@ class LevelProgressionService {
       return newLevel;
     } catch (e) {
       // ignore: avoid_print
-      print("Error updating power level: $e");
+      debugPrint("Error updating power level: $e");
       return null;
     }
   }

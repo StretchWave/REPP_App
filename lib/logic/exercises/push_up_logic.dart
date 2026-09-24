@@ -8,18 +8,10 @@ class PushUpLogic extends ExerciseLogic {
   @override
   void processLandmarks(List<Map<String, double>> landmarks) {
     if (landmarks.length < 33) return;
+    clearFrameState();
 
-    // Detect Side
-    double leftScore =
-        landmarks[11]['visibility']! +
-        landmarks[13]['visibility']! +
-        landmarks[15]['visibility']!;
-    double rightScore =
-        landmarks[12]['visibility']! +
-        landmarks[14]['visibility']! +
-        landmarks[16]['visibility']!;
-
-    String side = leftScore > rightScore ? "Left" : "Right";
+    // Detect Side using base class helper
+    String side = detectSide(landmarks, [11, 13, 15], [12, 14, 16]);
 
     Map<String, double> shoulder = side == "Left"
         ? landmarks[11]
@@ -80,17 +72,6 @@ class PushUpLogic extends ExerciseLogic {
       return;
     }
 
-    // 2. Hand Position
-    if (shoulder['y']! >= wrist['y']!) {
-      // Simple check: Shoulders usually above wrists in pushup,
-      // but coordinate system: 0 is top. So shoulder Y should be SMALLER than wrist Y.
-      // Wait, typical pushup: Shoulders (upper body) are higher (smaller Y) than floor (wrists/feet).
-      // If Shoulder Y > Wrist Y, shoulders are BELOW wrists (bad/impossible unless handstand).
-      // Originally: if (shoulder['y']! >= wrist['y']!) -> "Hands Above Shoulders" (Message confusing?)
-      // Let's stick to original logic:
-      // Original: if (shoulder['y']! >= wrist['y']!) accuracy = 30.
-    }
-
     isProperForm = true;
     final angle = calculateAngle(shoulder, elbow, wrist);
 
@@ -114,3 +95,4 @@ class PushUpLogic extends ExerciseLogic {
     return dx > dy;
   }
 }
+

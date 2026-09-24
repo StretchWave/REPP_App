@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:ai_fitness_tracker/core/workout_day_utils.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -265,28 +266,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   bool _isWorkoutDay(int weekday) {
-    // 1 = Mon, 7 = Sun
-    switch (_workoutFrequency) {
-      case 3:
-        // Mon(1), Wed(3), Fri(5)
-        return weekday == 1 || weekday == 3 || weekday == 5;
-      case 4:
-        // Mon(1), Tue(2), Thu(4), Fri(5)
-        return weekday == 1 || weekday == 2 || weekday == 4 || weekday == 5;
-      case 5:
-        // Mon(1), Tue(2), Wed(3), Fri(5), Sat(6)
-        return weekday == 1 ||
-            weekday == 2 ||
-            weekday == 3 ||
-            weekday == 5 ||
-            weekday == 6;
-      case 6:
-        // Mon(1) -> Sat(6)
-        return weekday != 7;
-      default:
-        // Fallback 3 days
-        return weekday == 1 || weekday == 3 || weekday == 5;
-    }
+    return WorkoutDayUtils.isWeekdayWorkoutDay(weekday, _workoutFrequency);
   }
 
   @override

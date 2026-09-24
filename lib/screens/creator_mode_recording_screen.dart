@@ -186,7 +186,6 @@ class _CreatorModeRecordingScreenState
     if (video == null) return;
 
     setState(() {
-      _isLoading = true;
       _recordedFrames.clear();
       _recordedAngles.clear();
     });
@@ -199,6 +198,7 @@ class _CreatorModeRecordingScreenState
       // or we can use a simpler approach if the bridge supports it.
 
       // I'll add a placeholder message and logic to show the UI intent.
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -209,13 +209,9 @@ class _CreatorModeRecordingScreenState
     } catch (e) {
       debugPrint("Error picking video: $e");
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      // Clean up if needed
     }
   }
-
-  bool _isLoading = false;
 
   @override
   void dispose() {

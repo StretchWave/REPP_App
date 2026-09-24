@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FoodLog {
@@ -46,8 +47,8 @@ class DietService {
     if (user == null) return [];
 
     final now = DateTime.now();
-    // Start of day (00:00:00)
-    final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();
+    // Start of day (00:00:00) — use UTC for Supabase timestamp comparison
+    final startOfDay = DateTime(now.year, now.month, now.day).toUtc().toIso8601String();
     // End of day (23:59:59)
     final endOfDay = DateTime(
       now.year,
@@ -56,7 +57,7 @@ class DietService {
       23,
       59,
       59,
-    ).toIso8601String();
+    ).toUtc().toIso8601String();
 
     try {
       final response = await _client
@@ -70,8 +71,7 @@ class DietService {
       final List<dynamic> data = response;
       return data.map((json) => FoodLog.fromJson(json)).toList();
     } catch (e) {
-      // ignore: avoid_print
-      print('Error fetching food logs: $e');
+      debugPrint('Error fetching food logs: $e');
       return [];
     }
   }
@@ -87,9 +87,7 @@ class DietService {
     final user = _client.auth.currentUser;
     if (user == null) throw Exception("User not logged in");
 
-    // Debug log
-    // ignore: avoid_print
-    print(
+    debugPrint(
       "DietService: Adding $foodName (C:$calories P:$protein C:$carbs F:$fats)",
     );
 
@@ -164,8 +162,7 @@ class DietService {
 
       return uniqueMeals.values.toList();
     } catch (e) {
-      // ignore: avoid_print
-      print("Error fetching recent meals: $e");
+      debugPrint("Error fetching recent meals: $e");
       return [];
     }
   }

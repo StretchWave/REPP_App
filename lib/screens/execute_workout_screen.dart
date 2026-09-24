@@ -237,7 +237,7 @@ class _ExecuteWorkoutScreenState extends State<ExecuteWorkoutScreen> {
                     vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blueAccent.withOpacity(0.8),
+                    color: Colors.blueAccent.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: Text(

@@ -6,7 +6,8 @@ class SequentialWorkoutController extends ChangeNotifier {
   int _currentStateIndex = 0;
   int _repCount = 0;
   String _feedback = "Get ready!";
-  bool _isComplete = false;
+  // Computed from state — no need for a separate mutable field
+  bool get _isFinished => states.isEmpty;
 
   DateTime? _stateStartTime;
   final Duration _stateTimeout = const Duration(
@@ -18,12 +19,12 @@ class SequentialWorkoutController extends ChangeNotifier {
   int get currentStateIndex => _currentStateIndex;
   int get repCount => _repCount;
   String get feedback => _feedback;
-  bool get isComplete => _isComplete;
+  bool get isComplete => _isFinished;
 
   List<dynamic> get states => definition['states'] ?? [];
 
   void updatePose(Map<String, double> currentAngles) {
-    if (_isComplete || states.isEmpty) return;
+    if (_isFinished) return;
 
     final targetState = states[_currentStateIndex];
     final Map<String, dynamic> rawTargets = targetState['targetAngles'] ?? {};

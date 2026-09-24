@@ -175,7 +175,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blueAccent.withOpacity(0.3),
+                        color: Colors.blueAccent.withValues(alpha: 0.3),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -230,12 +230,12 @@ class _RankingsScreenState extends State<RankingsScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: isMe
-                              ? Colors.blueAccent.withOpacity(0.15)
+                              ? Colors.blueAccent.withValues(alpha: 0.15)
                               : const Color(0xFF2C313A),
                           borderRadius: BorderRadius.circular(12),
                           border: isMe
                               ? Border.all(
-                                  color: Colors.blueAccent.withOpacity(0.5),
+                                  color: Colors.blueAccent.withValues(alpha: 0.5),
                                 )
                               : null,
                         ),
